@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meu Treino</title>
+<meta name="theme-color" content="#1F5F4A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Meu Treino">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Meu Treino</h1>
+  <p class="sub" id="sub"></p>
+  <div class="nav" role="tablist">
+    <button id="nTreino" aria-pressed="true">Treinar</button>
+    <button id="nProg" aria-pressed="false">Evolução</button>
+    <button id="nComida" aria-pressed="false">Comida</button>
+  </div>
+  <section id="vTreino">
+    <div class="tabs" id="tabs"></div>
+    <div id="list"></div>
+    <button class="primary" id="finish">Finalizar treino</button>
+  </section>
+  <section id="vProg" class="hidden"></section>
+  <section id="vComida" class="hidden"></section>
+</main>
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="workouts.js"></script>
+<script src="app.js"></script>
+<script src="food.js"></script>
+<script src="boot.js"></script>
+</body></html>
