@@ -1,0 +1,13 @@
+{
+  "name": "Meu Treino",
+  "short_name": "Meu Treino",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ECEEE8",
+  "theme_color": "#1F5F4A",
+  "description": "Treino, evolução e alimentação.",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
