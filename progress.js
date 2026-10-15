@@ -1,9 +1,10 @@
 // Progress tracking extension. Keeps the existing treino_v1 store and legacy records.
 (function(){
   const BACKUP_KEY=KEY+'_backup_pre_progress_v1';
-  try{const raw=localStorage.getItem(KEY);if(raw&&!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,raw)}catch(e){}
-  db.measures=Array.isArray(db.measures)?db.measures:[];
-  db.prefs=Object.assign({goalWeight:82},db.prefs||{});
+  let stored={};
+  try{const raw=localStorage.getItem(KEY);if(raw){stored=JSON.parse(raw)||{};if(!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,raw)}}catch(e){}
+  db.measures=Array.isArray(stored.measures)?stored.measures:(Array.isArray(db.measures)?db.measures:[]);
+  db.prefs=Object.assign({goalWeight:82},stored.prefs||db.prefs||{});
   const FIELDS=[['waist','Cintura'],['abdomen','Abdômen'],['chest','Peito'],['hips','Quadril'],['neck','Pescoço'],['armR','Braço D'],['armL','Braço E'],['thighR','Coxa D'],['thighL','Coxa E']];
   let mode='body',editing=null,range='30';
   const fmt=v=>Number(v).toFixed(1).replace('.0','');
