@@ -1,5 +1,5 @@
-const CACHE='meu-treino-v2';
-const ASSETS=['./','./index.html','./styles.css','./workouts.js','./app.js','./food.js','./scanner.js','./boot.js','./manifest.webmanifest','./icon.svg'];
+const CACHE='meu-treino-v3';
+const ASSETS=['./','./index.html','./styles.css','./workouts.js','./app.js','./food.js','./scanner.js','./progress.js','./boot.js','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()]));});
 self.addEventListener('fetch',e=>{
