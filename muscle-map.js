@@ -1,4 +1,4 @@
-// Exercise muscle summary + local generated anatomy artwork for the main A/B exercises.
+// Exercise muscle summary + generated anatomy artwork for the main A/B exercises.
 // Other exercises keep the existing non-AI wger photo fallback.
 (function(){
   const P={
@@ -45,6 +45,7 @@
     'Abdominal infra ou roda':'lying leg raise'
   };
 
+  // 5 columns x 2 rows in one high-resolution local sprite.
   const LOCAL_ART={
     'Barra fixa ou puxada frontal':{x:0,y:0},
     'Supino reto com barra':{x:25,y:0},
@@ -85,57 +86,27 @@
   try{photoCache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}')||{}}catch(e){photoCache={}}
   function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(photoCache))}catch(e){}}
   function validUrl(u){return typeof u==='string'&&/^https:\/\//i.test(u)}
-  function imageUrl(img){
-    if(!img)return null;
-    const th=img.thumbnails||{};
-    const u=th.medium||th.small||img.image||null;
-    return validUrl(u)?u:null;
-  }
+  function imageUrl(img){const th=img&&img.thumbnails||{};const u=th.medium||th.small||(img&&img.image)||null;return validUrl(u)?u:null}
   function photoFromResults(data){
-    const rows=Array.isArray(data)?data:(data&&Array.isArray(data.results)?data.results:[]);
-    const photos=[];
-    rows.forEach(ex=>(ex.images||[]).forEach(img=>{
-      if(String(img.style)!=='4'||img.is_ai_generated===true)return;
-      const url=imageUrl(img);if(!url)return;
-      photos.push({url,source:img.license_object_url||'https://wger.de',author:img.license_author||'',license:img.license_title||'',main:!!img.is_main});
-    }));
-    photos.sort((a,b)=>Number(b.main)-Number(a.main));
-    return photos[0]||null;
+    const rows=Array.isArray(data)?data:(data&&Array.isArray(data.results)?data.results:[]),photos=[];
+    rows.forEach(ex=>(ex.images||[]).forEach(img=>{if(String(img.style)!=='4'||img.is_ai_generated===true)return;const url=imageUrl(img);if(!url)return;photos.push({url,source:img.license_object_url||'https://wger.de',author:img.license_author||'',license:img.license_title||'',main:!!img.is_main})}));
+    photos.sort((a,b)=>Number(b.main)-Number(a.main));return photos[0]||null;
   }
   async function findPhoto(title){
-    const query=Q[title]||(typeof EN!=='undefined'&&EN[title])||title;
-    const cached=photoCache[query];
-    if(cached&&cached.url)return cached;
-    if(cached&&cached.none&&Date.now()-cached.none<7*86400000)return null;
-    try{
-      const url='https://wger.de/api/v2/exerciseinfo/?limit=20&language__code=en&name__search='+encodeURIComponent(query);
-      const r=await fetch(url,{headers:{Accept:'application/json'}});
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      const photo=photoFromResults(await r.json());
-      if(photo){photoCache[query]=photo;saveCache();return photo}
-      photoCache[query]={none:Date.now()};saveCache();return null;
-    }catch(e){return null}
+    const query=Q[title]||(typeof EN!=='undefined'&&EN[title])||title,cached=photoCache[query];
+    if(cached&&cached.url)return cached;if(cached&&cached.none&&Date.now()-cached.none<7*86400000)return null;
+    try{const r=await fetch('https://wger.de/api/v2/exerciseinfo/?limit=20&language__code=en&name__search='+encodeURIComponent(query),{headers:{Accept:'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);const photo=photoFromResults(await r.json());if(photo){photoCache[query]=photo;saveCache();return photo}photoCache[query]={none:Date.now()};saveCache();return null}catch(e){return null}
   }
-
-  function sourceLine(photo){
-    if(!photo)return '';
-    const bits=[];if(photo.author)bits.push(photo.author);if(photo.license)bits.push(photo.license);
-    return bits.length?'Foto: '+bits.join(' · '):'Foto real do catálogo wger';
-  }
+  function sourceLine(photo){const bits=[];if(photo&&photo.author)bits.push(photo.author);if(photo&&photo.license)bits.push(photo.license);return bits.length?'Foto: '+bits.join(' · '):'Foto real do catálogo wger'}
   function setPhoto(visual,title,photo){
     visual.innerHTML='';
-    if(!photo){
-      const none=document.createElement('div');none.className='real-photo-empty';none.innerHTML='<span>Foto real não disponível</span><small>Sem imagem externa para este exercício.</small>';visual.appendChild(none);return;
-    }
-    const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração real de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
-    img.onerror=()=>{photoCache[Q[title]||title]={none:Date.now()};saveCache();setPhoto(visual,title,null)};
-    visual.appendChild(img);
+    if(!photo){const none=document.createElement('div');none.className='real-photo-empty';none.innerHTML='<span>Foto real não disponível</span><small>Sem imagem externa para este exercício.</small>';visual.appendChild(none);return}
+    const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração real de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';img.onerror=()=>{photoCache[Q[title]||title]={none:Date.now()};saveCache();setPhoto(visual,title,null)};visual.appendChild(img);
     const cap=document.createElement('div');cap.className='real-photo-credit';cap.textContent=sourceLine(photo);visual.appendChild(cap);
   }
   function setLocalArtwork(visual,title,art){
     visual.innerHTML='';
     const img=document.createElement('div');img.className='local-anatomy-art';img.style.backgroundPosition=art.x+'% '+art.y+'%';img.setAttribute('role','img');img.setAttribute('aria-label','Ilustração anatômica de '+title+' com músculos trabalhados destacados');visual.appendChild(img);
-    const cap=document.createElement('div');cap.className='anatomy-credit';cap.textContent='Ilustração anatômica';visual.appendChild(cap);
   }
 
   function enhance(){
@@ -153,15 +124,13 @@
       wrap.append(visual,copy);
       const how=card.querySelector('.how');if(how)card.insertBefore(wrap,how);else{const hint=card.querySelector('.hint');hint?hint.insertAdjacentElement('afterend',wrap):card.appendChild(wrap)}
       const local=LOCAL_ART[title];
-      if(local){setLocalArtwork(visual,title,local)}
-      else{visual.innerHTML='<div class="real-photo-loading">Buscando foto real…</div>';findPhoto(title).then(photo=>{if(document.body.contains(visual))setPhoto(visual,title,photo)})}
+      if(local)setLocalArtwork(visual,title,local);else{visual.innerHTML='<div class="real-photo-loading">Buscando foto real…</div>';findPhoto(title).then(photo=>{if(document.body.contains(visual))setPhoto(visual,title,photo)})}
     });
   }
 
-  const base=window.renderList;
-  if(typeof base==='function')window.renderList=function(){base.apply(this,arguments);requestAnimationFrame(enhance)};
+  const base=window.renderList;if(typeof base==='function')window.renderList=function(){base.apply(this,arguments);requestAnimationFrame(enhance)};
 
   const style=document.createElement('style');
-  style.textContent='.muscle-map.real-map{display:grid;grid-template-columns:142px minmax(0,1fr);align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 10px}.real-photo-box{position:relative;width:142px;height:112px;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--line) 58%,var(--card));border:1px solid var(--line)}.local-anatomy-art{width:100%;height:100%;background-image:url("./assets/anatomy/exercise-anatomy-v2.jpg");background-repeat:no-repeat;background-size:500% 200%;background-color:#f2efe9}.real-exercise-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.real-photo-loading,.real-photo-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:12px}.real-photo-empty{flex-direction:column;gap:3px}.real-photo-empty small{font-size:10px;line-height:1.25}.real-photo-credit,.anatomy-credit{position:absolute;left:4px;right:4px;bottom:4px;padding:3px 5px;border-radius:5px;background:rgba(0,0,0,.64);color:#fff;font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muscle-copy{display:grid;gap:4px;min-width:0}.muscle-copy>b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.3}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.primary{background:var(--acc)}.muscle-copy .dot.secondary{background:var(--hot)}@media(max-width:390px){.muscle-map.real-map{grid-template-columns:118px minmax(0,1fr);gap:9px;padding:7px 8px}.real-photo-box{width:118px;height:94px}.muscle-copy>b{font-size:16px}.muscle-copy span{font-size:11px}}';
+  style.textContent='.muscle-map.real-map{display:grid;grid-template-columns:220px minmax(0,1fr);align-items:center;gap:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0 10px}.real-photo-box{position:relative;width:220px;height:150px;border-radius:10px;overflow:hidden;background:#f4f2ed;border:1px solid var(--line)}.local-anatomy-art{width:100%;height:100%;background-image:url("./assets/anatomy/exercise-anatomy-v3.jpg");background-repeat:no-repeat;background-size:500% 200%;background-color:#fff}.real-exercise-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.real-photo-loading,.real-photo-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:12px}.real-photo-empty{flex-direction:column;gap:3px}.real-photo-empty small{font-size:10px;line-height:1.25}.real-photo-credit{position:absolute;left:6px;right:6px;bottom:6px;padding:3px 5px;border-radius:5px;background:rgba(0,0,0,.58);color:#fff;font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muscle-copy{display:grid;gap:5px;min-width:0}.muscle-copy>b{font:700 19px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.35}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.primary{background:var(--acc)}.muscle-copy .dot.secondary{background:var(--hot)}@media(max-width:520px){.muscle-map.real-map{grid-template-columns:1fr;gap:9px;padding:9px}.real-photo-box{width:100%;height:190px}.muscle-copy{padding:0 4px 2px}.muscle-copy>b{font-size:18px}.muscle-copy span{font-size:12px}}';
   document.head.appendChild(style);
 })();
