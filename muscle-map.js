@@ -1,5 +1,5 @@
 // Real exercise photos + muscle summary for each exercise card.
-// Uses only photo-style images from the public wger exercise catalogue.
+// Uses only photo-style, non-AI images from the public wger exercise catalogue.
 (function(){
   const P={
     chest:{label:'Peito',primary:['peito'],secondary:['ombros','tríceps']},
@@ -67,7 +67,7 @@
     return null;
   }
 
-  const CACHE_KEY='treino_real_exercise_photos_v1';
+  const CACHE_KEY='treino_real_exercise_photos_v2';
   let photoCache={};
   try{photoCache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}')||{}}catch(e){photoCache={}}
   function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(photoCache))}catch(e){}}
@@ -82,18 +82,17 @@
     const rows=Array.isArray(data)?data:(data&&Array.isArray(data.results)?data.results:[]);
     const photos=[];
     rows.forEach(ex=>(ex.images||[]).forEach(img=>{
-      if(String(img.style)!=='4')return;
+      if(String(img.style)!=='4'||img.is_ai_generated===true)return;
       const url=imageUrl(img);if(!url)return;
       photos.push({
         url,
         source:img.license_object_url||'https://wger.de',
         author:img.license_author||'',
         license:img.license_title||'',
-        main:!!img.is_main,
-        ai:!!img.is_ai_generated
+        main:!!img.is_main
       });
     }));
-    photos.sort((a,b)=>(Number(a.ai)-Number(b.ai))||(Number(b.main)-Number(a.main)));
+    photos.sort((a,b)=>Number(b.main)-Number(a.main));
     return photos[0]||null;
   }
   async function findPhoto(title){
