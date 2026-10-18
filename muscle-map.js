@@ -92,11 +92,15 @@
     });
     return best;
   }
+  const USE_WGER=false; // true = tenta buscar fotos do wger quando não há imagem local (estilo diferente das suas)
+  let LOCAL={};const localReady=fetch('exercise-images.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(m=>{LOCAL=m||{}});
   async function findPhoto(title){
+    await localReady;const lc=LOCAL[title];if(lc&&lc.file)return {local:true,url:lc.file,source:lc.source||'',author:lc.author||'',license:lc.license||''};
     const query=Q[title]||(typeof EN!=='undefined'&&EN[title])||title;
     const cached=photoCache[query];
     if(cached&&cached.url)return cached;
     if(cached&&cached.none&&Date.now()-cached.none<7*86400000)return null;
+    if(!USE_WGER)return null;
     try{
       const url='https://wger.de/api/v2/exerciseinfo/?limit=20&language__code=en&name__search='+encodeURIComponent(query);
       const r=await fetch(url,{headers:{'Accept':'application/json'}});
@@ -117,9 +121,10 @@
       const art=typeof window.exerciseArt==='function'?window.exerciseArt(title):null;if(art){visual.appendChild(art);return}
       const none=document.createElement('div');none.className='real-photo-empty';none.innerHTML='<span>Foto real não disponível</span><small>O app não usa mais a figura esquemática.</small>';visual.appendChild(none);return;
     }
-    const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração real de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
+    const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
     img.onerror=()=>{delete photoCache[Q[title]||title];saveCache();setPhoto(visual,title,null)};
     visual.appendChild(img);
+    if(photo.local)return;
     const cap=document.createElement('div');cap.className='real-photo-credit';cap.textContent=sourceLine(photo);visual.appendChild(cap);
   }
   function enhance(){
