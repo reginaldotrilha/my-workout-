@@ -67,7 +67,7 @@
     return null;
   }
 
-  const CACHE_KEY='treino_real_exercise_photos_v2';
+  const CACHE_KEY='treino_real_exercise_photos_v3';
   let photoCache={};
   try{photoCache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}')||{}}catch(e){photoCache={}}
   function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(photoCache))}catch(e){}}
@@ -78,22 +78,19 @@
     const u=th.medium||th.small||img.image||null;
     return validUrl(u)?u:null;
   }
-  function photoFromResults(data){
+  const EQ=/^(barbell|dumbbell|cable|machine|lying|seated|standing)$/,BAD=/incline|decline|close|narrow|wide|reverse|single|one|smith|kneeling|hammer|overhead|front|jump|band/;
+  function photoFromResults(data,query){
     const rows=Array.isArray(data)?data:(data&&Array.isArray(data.results)?data.results:[]);
-    const photos=[];
-    rows.forEach(ex=>(ex.images||[]).forEach(img=>{
-      if(String(img.style)!=='4'||img.is_ai_generated===true)return;
-      const url=imageUrl(img);if(!url)return;
-      photos.push({
-        url,
-        source:img.license_object_url||'https://wger.de',
-        author:img.license_author||'',
-        license:img.license_title||'',
-        main:!!img.is_main
-      });
-    }));
-    photos.sort((a,b)=>Number(b.main)-Number(a.main));
-    return photos[0]||null;
+    const need=query.toLowerCase().split(/\s+/).filter(w=>!EQ.test(w)),q=query.toLowerCase();
+    let best=null;
+    rows.forEach(ex=>{
+      const names=[ex.name].concat((ex.translations||[]).filter(t=>!t.language||t.language===2).map(t=>t.name)).filter(Boolean).map(n=>n.toLowerCase());
+      const nm=names.find(n=>need.every(w=>n.includes(w))&&!(BAD.test(n)&&!BAD.test(q)));if(!nm)return;
+      const imgs=(ex.images||[]).filter(i=>String(i.style)==='4'&&i.is_ai_generated!==true&&imageUrl(i)).sort((a,b)=>Number(!!b.is_main)-Number(!!a.is_main));
+      if(!imgs.length)return;const img=imgs[0],score=nm.length-(q.split(' ').every(w=>nm.includes(w))?8:0);
+      if(!best||score<best.score)best={score,url:imageUrl(img),source:img.license_object_url||'https://wger.de',author:img.license_author||'',license:img.license_title||''};
+    });
+    return best;
   }
   async function findPhoto(title){
     const query=Q[title]||(typeof EN!=='undefined'&&EN[title])||title;
@@ -104,7 +101,7 @@
       const url='https://wger.de/api/v2/exerciseinfo/?limit=20&language__code=en&name__search='+encodeURIComponent(query);
       const r=await fetch(url,{headers:{'Accept':'application/json'}});
       if(!r.ok)throw new Error('HTTP '+r.status);
-      const photo=photoFromResults(await r.json());
+      const photo=photoFromResults(await r.json(),query);
       if(photo){photoCache[query]=photo;saveCache();return photo}
       photoCache[query]={none:Date.now()};saveCache();return null;
     }catch(e){return null}
@@ -117,10 +114,11 @@
   function setPhoto(visual,title,photo){
     visual.innerHTML='';
     if(!photo){
+      const art=typeof window.exerciseArt==='function'?window.exerciseArt(title):null;if(art){visual.appendChild(art);return}
       const none=document.createElement('div');none.className='real-photo-empty';none.innerHTML='<span>Foto real não disponível</span><small>O app não usa mais a figura esquemática.</small>';visual.appendChild(none);return;
     }
     const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração real de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
-    img.onerror=()=>{photoCache[Q[title]||title]={none:Date.now()};saveCache();setPhoto(visual,title,null)};
+    img.onerror=()=>{delete photoCache[Q[title]||title];saveCache();setPhoto(visual,title,null)};
     visual.appendChild(img);
     const cap=document.createElement('div');cap.className='real-photo-credit';cap.textContent=sourceLine(photo);visual.appendChild(cap);
   }
@@ -134,16 +132,16 @@
       const visual=document.createElement('div');visual.className='real-photo-box';visual.innerHTML='<div class="real-photo-loading">Buscando foto real…</div>';
       const copy=document.createElement('div');copy.className='muscle-copy';
       const h=document.createElement('b');h.textContent=p.label;copy.appendChild(h);
-      const pri=document.createElement('span');pri.innerHTML='<i class="dot primary"></i>Principal: '+p.primary.join(', ');copy.appendChild(pri);
-      if(p.secondary.length){const sec=document.createElement('span');sec.innerHTML='<i class="dot secondary"></i>Também: '+p.secondary.join(', ');copy.appendChild(sec)}
+      const pri=document.createElement('span');pri.innerHTML='<i class="dot dot-main"></i>Principal: '+p.primary.join(', ');copy.appendChild(pri);
+      if(p.secondary.length){const sec=document.createElement('span');sec.innerHTML='<i class="dot dot-sec"></i>Também: '+p.secondary.join(', ');copy.appendChild(sec)}
       wrap.append(visual,copy);
       const how=card.querySelector('.how');if(how)card.insertBefore(wrap,how);else{const hint=card.querySelector('.hint');hint?hint.insertAdjacentElement('afterend',wrap):card.appendChild(wrap)}
-      const art=typeof window.exerciseArt==='function'?window.exerciseArt(title):null;if(art){visual.innerHTML='';visual.appendChild(art)}else visual.style.display='none';
+      findPhoto(title).then(photo=>{if(document.body.contains(visual))setPhoto(visual,title,photo)});
     });
   }
   const base=window.renderList;if(typeof base==='function')window.renderList=function(){base.apply(this,arguments);requestAnimationFrame(enhance)};
 
   const style=document.createElement('style');
-  style.textContent='.muscle-map.real-map{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 10px}.real-photo-box{position:relative;width:100%;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--line) 58%,var(--card));border:1px solid var(--line)}.real-exercise-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.real-photo-loading,.real-photo-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:12px}.real-photo-empty{flex-direction:column;gap:3px}.real-photo-empty small{font-size:10px;line-height:1.25}.real-photo-credit{position:absolute;left:4px;right:4px;bottom:4px;padding:3px 5px;border-radius:5px;background:rgba(0,0,0,.64);color:#fff;font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muscle-copy{display:grid;gap:4px;min-width:0}.muscle-copy>b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.3}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.primary{background:var(--acc)}.muscle-copy .dot.secondary{background:var(--hot)}@media(max-width:390px){.muscle-map.real-map{grid-template-columns:minmax(0,1fr);gap:9px;padding:7px 8px}.real-photo-box{width:100%}.muscle-copy>b{font-size:16px}.muscle-copy span{font-size:11px}}';
+  style.textContent='.muscle-map.real-map{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 10px}.real-photo-box{position:relative;width:100%;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--line) 58%,var(--card));border:1px solid var(--line)}.real-exercise-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.real-photo-loading,.real-photo-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:12px}.real-photo-empty{flex-direction:column;gap:3px}.real-photo-empty small{font-size:10px;line-height:1.25}.real-photo-credit{position:absolute;left:4px;right:4px;bottom:4px;padding:3px 5px;border-radius:5px;background:rgba(0,0,0,.64);color:#fff;font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muscle-copy{display:grid;gap:4px;min-width:0}.muscle-copy>b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.3}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.dot-main{background:var(--acc)}.muscle-copy .dot.dot-sec{background:var(--hot)}@media(max-width:390px){.muscle-map.real-map{grid-template-columns:minmax(0,1fr);gap:9px;padding:7px 8px}.real-photo-box{width:100%}.muscle-copy>b{font-size:16px}.muscle-copy span{font-size:11px}}';
   document.head.appendChild(style);
 })();
