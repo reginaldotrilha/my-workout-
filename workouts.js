@@ -1,9 +1,35 @@
-const PLAN={
- A:{n:"Peito + Tríceps",ex:[["Supino reto com barra","4×6-10",4],["Supino inclinado com halteres","4×8-12",4],["Crucifixo na polia ou peck deck","3×12",3],["Tríceps testa","3×8-12",3],["Tríceps na polia (corda)","3×10-12",3]]},
- B:{n:"Costas + Bíceps",ex:[["Barra fixa ou puxada frontal","4×6-10",4],["Remada curvada com barra","4×8-10",4],["Remada unilateral com halter","3×10-12",3],["Rosca direta com barra","3×8-12",3],["Rosca martelo","3×10-12",3]]},
- C:{n:"Pernas",ex:[["Agachamento livre","4×6-10",4],["Leg press","4×10-12",4],["Stiff (levantamento terra romeno)","3×8-10",3],["Mesa flexora","3×10-12",3],["Panturrilha em pé","4×12-15",4]]},
- D:{n:"Ombros + Core",ex:[["Desenvolvimento militar","4×6-10",4],["Elevação lateral","4×12-15",4],["Face pull ou crucifixo invertido","3×12-15",3],["Encolhimento","3×10-12",3],["Prancha (segundos)","3×45-60s",3],["Abdominal infra ou roda","3×12-15",3]]}
+const ACTIVE_PROFILE=(window.MeuTreinoProfiles&&typeof window.MeuTreinoProfiles.current==='function')?window.MeuTreinoProfiles.current():'reginaldo';
+
+const PROFILE_META={
+ reginaldo:{planName:'Plano ABCD',goal:'Perda de gordura + manutenção e ganho muscular',reviewWeeks:8},
+ sandra:{planName:'Retorno ABCD · Sandra',goal:'Perda de gordura + recuperação e ganho de massa muscular',reviewWeeks:6},
+ eric:{planName:'ABCD Hipertrofia · Eric',goal:'Perda de gordura + ganho de massa muscular',reviewWeeks:8}
 };
+window.WORKOUT_PROFILE_META=PROFILE_META[ACTIVE_PROFILE]||PROFILE_META.reginaldo;
+
+const PROFILE_PLANS={
+ reginaldo:{
+  A:{n:"Peito + Tríceps",ex:[["Supino reto com barra","4×6-10",4],["Supino inclinado com halteres","4×8-12",4],["Crucifixo na polia ou peck deck","3×12",3],["Tríceps testa","3×8-12",3],["Tríceps na polia (corda)","3×10-12",3]]},
+  B:{n:"Costas + Bíceps",ex:[["Barra fixa ou puxada frontal","4×6-10",4],["Remada curvada com barra","4×8-10",4],["Remada unilateral com halter","3×10-12",3],["Rosca direta com barra","3×8-12",3],["Rosca martelo","3×10-12",3]]},
+  C:{n:"Pernas",ex:[["Agachamento livre","4×6-10",4],["Leg press","4×10-12",4],["Stiff (levantamento terra romeno)","3×8-10",3],["Mesa flexora","3×10-12",3],["Panturrilha em pé","4×12-15",4]]},
+  D:{n:"Ombros + Core",ex:[["Desenvolvimento militar","4×6-10",4],["Elevação lateral","4×12-15",4],["Face pull ou crucifixo invertido","3×12-15",3],["Encolhimento","3×10-12",3],["Prancha (segundos)","3×45-60s",3],["Abdominal infra ou roda","3×12-15",3]]}
+ },
+ sandra:{
+  A:{n:"Peito + Tríceps · retorno",ex:[["Supino reto com barra","3×8-12",3],["Supino inclinado com halteres","3×8-12",3],["Crucifixo na polia ou peck deck","2×10-15",2],["Tríceps testa","2×10-12",2],["Tríceps na polia (corda)","2×10-15",2]]},
+  B:{n:"Costas + Bíceps · retorno",ex:[["Barra fixa ou puxada frontal","3×8-12",3],["Remada curvada com barra","3×8-12",3],["Remada unilateral com halter","2×10-12",2],["Rosca direta com barra","2×10-12",2],["Rosca martelo","2×10-12",2]]},
+  C:{n:"Pernas · retorno",ex:[["Agachamento livre","3×8-10",3],["Leg press","3×10-12",3],["Stiff (levantamento terra romeno)","2×8-12",2],["Mesa flexora","2×10-15",2],["Panturrilha em pé","3×12-15",3]]},
+  D:{n:"Ombros + Core · retorno",ex:[["Desenvolvimento militar","3×8-12",3],["Elevação lateral","2×12-15",2],["Face pull ou crucifixo invertido","2×12-15",2],["Encolhimento","2×10-15",2],["Prancha (segundos)","3×30-45s",3],["Abdominal infra ou roda","2×10-15",2]]}
+ },
+ eric:{
+  A:{n:"Peito + Tríceps · hipertrofia",ex:[["Supino reto com barra","4×6-10",4],["Supino inclinado com halteres","3×8-12",3],["Crucifixo na polia ou peck deck","3×10-15",3],["Tríceps testa","3×8-12",3],["Tríceps na polia (corda)","3×10-15",3]]},
+  B:{n:"Costas + Bíceps · hipertrofia",ex:[["Barra fixa ou puxada frontal","4×6-10",4],["Remada curvada com barra","4×8-10",4],["Remada unilateral com halter","3×10-12",3],["Rosca direta com barra","3×8-12",3],["Rosca martelo","3×10-12",3]]},
+  C:{n:"Pernas · hipertrofia",ex:[["Agachamento livre","4×6-10",4],["Leg press","4×10-12",4],["Stiff (levantamento terra romeno)","3×8-12",3],["Mesa flexora","3×10-15",3],["Panturrilha em pé","4×12-15",4]]},
+  D:{n:"Ombros + Core · hipertrofia",ex:[["Desenvolvimento militar","4×6-10",4],["Elevação lateral","4×12-15",4],["Face pull ou crucifixo invertido","3×12-15",3],["Encolhimento","3×10-12",3],["Prancha (segundos)","3×45-60s",3],["Abdominal infra ou roda","3×12-15",3]]}
+ }
+};
+
+const PLAN=PROFILE_PLANS[ACTIVE_PROFILE]||PROFILE_PLANS.reginaldo;
+
 const TIPS={
 "Supino reto com barra":"Deite com os olhos sob a barra, escápulas juntas e pés firmes no chão. Desça até o meio do peito, cotovelos a uns 45° do corpo, e empurre sem tirar o quadril do banco.",
 "Supino inclinado com halteres":"Banco a 30-45°, escápulas para trás. Desça os halteres até a linha do peito e suba sem bater um no outro.",
