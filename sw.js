@@ -1,5 +1,5 @@
-const CACHE='meu-treino-v25';
-const ASSETS=['./','./index.html','./styles.css','./food-library.css','./workouts.js','./app.js','./food.js','./scanner.js','./food-library.js','./energy-balance.js','./smart-food-suggestions.js','./meal-aware-suggestions.js','./progress.js','./training.js','./training-compat.js','./exercise-types.js','./workout-flex.js','./exercise-art.js','./exercise-images.json','./img/lat_pulldown_hd_v2.jpg','./muscle-map.js','./extra-rename.js','./completed-workout-rename.js','./strength-history.js','./weight-chart.js','./boot.js','./manifest.webmanifest','./icon.svg'];
+const CACHE='meu-treino-v23';
+const ASSETS=['./','./index.html','./styles.css','./food-library.css','./workouts.js','./app.js','./food.js','./scanner.js','./food-library.js','./energy-balance.js','./smart-food-suggestions.js','./meal-aware-suggestions.js','./progress.js','./training.js','./training-compat.js','./exercise-types.js','./workout-flex.js','./exercise-art.js','./exercise-images.json','./muscle-map.js','./extra-rename.js','./completed-workout-rename.js','./strength-history.js','./weight-chart.js','./boot.js','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()]));});
 self.addEventListener('fetch',e=>{
