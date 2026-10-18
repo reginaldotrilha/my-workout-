@@ -1,23 +1,48 @@
-// Compact anatomical muscle maps for each exercise card. Pure inline SVG: no external assets.
+// Real exercise photos + muscle summary for each exercise card.
+// Uses only photo-style images from the public wger exercise catalogue.
 (function(){
   const P={
-    chest:{label:'Peito',primary:['chest'],secondary:['shoulders','triceps']},
-    chestIncline:{label:'Peito superior',primary:['chest','shoulders'],secondary:['triceps']},
-    triceps:{label:'Tríceps',primary:['triceps'],secondary:['shoulders']},
-    back:{label:'Costas',primary:['lats','upperback'],secondary:['biceps','rearshoulders']},
-    lats:{label:'Dorsais',primary:['lats'],secondary:['biceps','rearshoulders']},
-    biceps:{label:'Bíceps',primary:['biceps'],secondary:['forearms']},
-    hammer:{label:'Bíceps + antebraço',primary:['biceps','forearms'],secondary:[]},
-    squat:{label:'Quadríceps + glúteos',primary:['quads','glutes'],secondary:['hamstrings','abs','lowerback']},
-    hamstrings:{label:'Posterior + glúteos',primary:['hamstrings','glutes'],secondary:['lowerback']},
-    legcurl:{label:'Posterior da coxa',primary:['hamstrings'],secondary:['calves']},
-    calves:{label:'Panturrilhas',primary:['calves'],secondary:[]},
-    shoulders:{label:'Ombros',primary:['shoulders'],secondary:['triceps','upperback']},
-    lateral:{label:'Ombros laterais',primary:['shoulders'],secondary:[]},
-    rear:{label:'Ombro posterior + costas',primary:['rearshoulders','upperback'],secondary:['lats']},
-    traps:{label:'Trapézio',primary:['upperback'],secondary:['shoulders']},
-    core:{label:'Core',primary:['abs'],secondary:['shoulders','glutes','lowerback']},
-    abs:{label:'Abdômen',primary:['abs'],secondary:['quads']}
+    chest:{label:'Peito',primary:['peito'],secondary:['ombros','tríceps']},
+    chestIncline:{label:'Peito superior',primary:['peito superior','ombros'],secondary:['tríceps']},
+    triceps:{label:'Tríceps',primary:['tríceps'],secondary:['ombros']},
+    back:{label:'Costas',primary:['dorsais','costas/trapézio'],secondary:['bíceps','ombro posterior']},
+    lats:{label:'Dorsais',primary:['dorsais'],secondary:['bíceps','ombro posterior']},
+    biceps:{label:'Bíceps',primary:['bíceps'],secondary:['antebraços']},
+    hammer:{label:'Bíceps + antebraço',primary:['bíceps','antebraços'],secondary:[]},
+    squat:{label:'Quadríceps + glúteos',primary:['quadríceps','glúteos'],secondary:['posterior da coxa','abdômen','lombar']},
+    hamstrings:{label:'Posterior + glúteos',primary:['posterior da coxa','glúteos'],secondary:['lombar']},
+    legcurl:{label:'Posterior da coxa',primary:['posterior da coxa'],secondary:['panturrilhas']},
+    calves:{label:'Panturrilhas',primary:['panturrilhas'],secondary:[]},
+    shoulders:{label:'Ombros',primary:['ombros'],secondary:['tríceps','costas/trapézio']},
+    lateral:{label:'Ombros laterais',primary:['ombros'],secondary:[]},
+    rear:{label:'Ombro posterior + costas',primary:['ombro posterior','costas/trapézio'],secondary:['dorsais']},
+    traps:{label:'Trapézio',primary:['costas/trapézio'],secondary:['ombros']},
+    core:{label:'Core',primary:['abdômen'],secondary:['ombros','glúteos','lombar']},
+    abs:{label:'Abdômen',primary:['abdômen'],secondary:['quadríceps']}
+  };
+
+  const Q={
+    'Supino reto com barra':'barbell bench press',
+    'Supino inclinado com halteres':'incline dumbbell bench press',
+    'Crucifixo na polia ou peck deck':'pec deck fly',
+    'Tríceps testa':'lying triceps extension',
+    'Tríceps na polia (corda)':'cable triceps pushdown',
+    'Barra fixa ou puxada frontal':'lat pulldown',
+    'Remada curvada com barra':'barbell bent over row',
+    'Remada unilateral com halter':'one arm dumbbell row',
+    'Rosca direta com barra':'barbell biceps curl',
+    'Rosca martelo':'dumbbell hammer curl',
+    'Agachamento livre':'barbell back squat',
+    'Leg press':'leg press',
+    'Stiff (levantamento terra romeno)':'romanian deadlift',
+    'Mesa flexora':'lying leg curl',
+    'Panturrilha em pé':'standing calf raise',
+    'Desenvolvimento militar':'barbell overhead press',
+    'Elevação lateral':'dumbbell lateral raise',
+    'Face pull ou crucifixo invertido':'cable face pull',
+    'Encolhimento':'dumbbell shrug',
+    'Prancha (segundos)':'plank',
+    'Abdominal infra ou roda':'lying leg raise'
   };
 
   function profile(name){
@@ -39,48 +64,87 @@
     if(/desenvolvimento|militar|shoulder press|overhead press/.test(n))return P.shoulders;
     if(/prancha|plank/.test(n))return P.core;
     if(/abdominal|ab wheel|roda|leg raise|crunch/.test(n))return P.abs;
-    return null
+    return null;
   }
 
-  const frontShapes={
-    shoulders:'<ellipse cx="31" cy="38" rx="8" ry="6"/><ellipse cx="69" cy="38" rx="8" ry="6"/>',
-    chest:'<path d="M38 42 Q50 37 62 42 L61 57 Q50 62 39 57Z"/>',
-    biceps:'<ellipse cx="25" cy="58" rx="5" ry="10"/><ellipse cx="75" cy="58" rx="5" ry="10"/>',
-    forearms:'<ellipse cx="22" cy="78" rx="4" ry="12"/><ellipse cx="78" cy="78" rx="4" ry="12"/>',
-    abs:'<path d="M43 59 L57 59 L59 86 L41 86Z"/>',
-    quads:'<path d="M39 91 L48 91 L46 119 L36 119Z"/><path d="M52 91 L61 91 L64 119 L54 119Z"/>',
-    calves:'<path d="M37 121 L46 121 L44 143 L38 143Z"/><path d="M54 121 L63 121 L62 143 L56 143Z"/>'
-  };
-  const backShapes={
-    rearshoulders:'<ellipse cx="111" cy="38" rx="8" ry="6"/><ellipse cx="149" cy="38" rx="8" ry="6"/>',
-    upperback:'<path d="M118 39 Q130 32 142 39 L139 57 Q130 53 121 57Z"/>',
-    lats:'<path d="M117 50 Q130 56 143 50 L139 78 Q130 84 121 78Z"/>',
-    triceps:'<ellipse cx="105" cy="58" rx="5" ry="10"/><ellipse cx="155" cy="58" rx="5" ry="10"/>',
-    lowerback:'<path d="M123 76 L137 76 L139 89 L121 89Z"/>',
-    glutes:'<ellipse cx="124" cy="96" rx="8" ry="7"/><ellipse cx="136" cy="96" rx="8" ry="7"/>',
-    hamstrings:'<path d="M119 101 L128 101 L126 121 L117 121Z"/><path d="M132 101 L141 101 L143 121 L134 121Z"/>',
-    calves:'<path d="M117 123 L126 123 L124 144 L118 144Z"/><path d="M134 123 L143 123 L142 144 L136 144Z"/>'
-  };
-
-  function baseBody(cx){return '<circle cx="'+cx+'" cy="18" r="9"/><path d="M'+(cx-12)+' 30 Q'+cx+' 25 '+(cx+12)+' 30 L'+(cx+15)+' 84 Q'+cx+' 91 '+(cx-15)+' 84Z"/><path d="M'+(cx-14)+' 36 L'+(cx-26)+' 80"/><path d="M'+(cx+14)+' 36 L'+(cx+26)+' 80"/><path d="M'+(cx-8)+' 88 L'+(cx-11)+' 145"/><path d="M'+(cx+8)+' 88 L'+(cx+11)+' 145"/>'}
-  function svg(profile){
-    const pri=new Set(profile.primary),sec=new Set(profile.secondary);
-    const cls=m=>pri.has(m)?'mm-primary':sec.has(m)?'mm-secondary':'mm-off';
-    let f='',b='';Object.entries(frontShapes).forEach(([m,s])=>f+='<g class="'+cls(m)+'">'+s+'</g>');Object.entries(backShapes).forEach(([m,s])=>b+='<g class="'+cls(m)+'">'+s+'</g>');
-    return '<svg class="muscle-svg" viewBox="0 0 180 155" role="img" aria-label="Mapa muscular: '+profile.label+'"><g class="mm-body">'+baseBody(50)+baseBody(130)+'</g>'+f+b+'<text x="50" y="153">frente</text><text x="130" y="153">costas</text></svg>'
+  const CACHE_KEY='treino_real_exercise_photos_v1';
+  let photoCache={};
+  try{photoCache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}')||{}}catch(e){photoCache={}}
+  function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(photoCache))}catch(e){}}
+  function validUrl(u){return typeof u==='string'&&/^https:\/\//i.test(u)}
+  function imageUrl(img){
+    if(!img)return null;
+    const th=img.thumbnails||{};
+    const u=th.medium||th.small||img.image||null;
+    return validUrl(u)?u:null;
   }
-  function names(profile){
-    const map={chest:'peito',shoulders:'ombros',triceps:'tríceps',lats:'dorsais',upperback:'costas/trapézio',rearshoulders:'ombro posterior',biceps:'bíceps',forearms:'antebraços',abs:'abdômen',quads:'quadríceps',glutes:'glúteos',hamstrings:'posterior da coxa',lowerback:'lombar',calves:'panturrilhas'};
-    return{p:profile.primary.map(x=>map[x]||x).join(', '),s:profile.secondary.map(x=>map[x]||x).join(', ')}
+  function photoFromResults(data){
+    const rows=Array.isArray(data)?data:(data&&Array.isArray(data.results)?data.results:[]);
+    const photos=[];
+    rows.forEach(ex=>(ex.images||[]).forEach(img=>{
+      if(String(img.style)!=='4')return;
+      const url=imageUrl(img);if(!url)return;
+      photos.push({
+        url,
+        source:img.license_object_url||'https://wger.de',
+        author:img.license_author||'',
+        license:img.license_title||'',
+        main:!!img.is_main,
+        ai:!!img.is_ai_generated
+      });
+    }));
+    photos.sort((a,b)=>(Number(a.ai)-Number(b.ai))||(Number(b.main)-Number(a.main)));
+    return photos[0]||null;
+  }
+  async function findPhoto(title){
+    const query=Q[title]||(typeof EN!=='undefined'&&EN[title])||title;
+    const cached=photoCache[query];
+    if(cached&&cached.url)return cached;
+    if(cached&&cached.none&&Date.now()-cached.none<7*86400000)return null;
+    try{
+      const url='https://wger.de/api/v2/exerciseinfo/?limit=20&language__code=en&name__search='+encodeURIComponent(query);
+      const r=await fetch(url,{headers:{'Accept':'application/json'}});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const photo=photoFromResults(await r.json());
+      if(photo){photoCache[query]=photo;saveCache();return photo}
+      photoCache[query]={none:Date.now()};saveCache();return null;
+    }catch(e){return null}
+  }
+  function sourceLine(photo){
+    if(!photo)return '';
+    const bits=[];if(photo.author)bits.push(photo.author);if(photo.license)bits.push(photo.license);
+    return bits.length?'Foto: '+bits.join(' · '):'Foto real do catálogo wger';
+  }
+  function setPhoto(visual,title,photo){
+    visual.innerHTML='';
+    if(!photo){
+      const none=document.createElement('div');none.className='real-photo-empty';none.innerHTML='<span>Foto real não disponível</span><small>O app não usa mais a figura esquemática.</small>';visual.appendChild(none);return;
+    }
+    const img=document.createElement('img');img.className='real-exercise-photo';img.src=photo.url;img.alt='Demonstração real de '+title;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
+    img.onerror=()=>{photoCache[Q[title]||title]={none:Date.now()};saveCache();setPhoto(visual,title,null)};
+    visual.appendChild(img);
+    const cap=document.createElement('div');cap.className='real-photo-credit';cap.textContent=sourceLine(photo);visual.appendChild(cap);
   }
   function enhance(){
     const box=document.getElementById('list');if(!box)return;
     [...box.querySelectorAll(':scope > .ex')].forEach(card=>{
-      if(card.querySelector('.muscle-map'))return;const title=card.querySelector('.ex-h h3')?.textContent;if(!title)return;const p=profile(title);if(!p)return;
-      const n=names(p),wrap=document.createElement('div');wrap.className='muscle-map';wrap.innerHTML='<div class="muscle-art">'+svg(p)+'</div><div class="muscle-copy"><b>'+p.label+'</b><span><i class="dot primary"></i>Principal: '+n.p+'</span>'+(n.s?'<span><i class="dot secondary"></i>Também: '+n.s+'</span>':'')+'</div>';
+      if(card.querySelector('.muscle-map'))return;
+      const title=card.querySelector('.ex-h h3')?.textContent;if(!title)return;
+      const p=profile(title);if(!p)return;
+      const wrap=document.createElement('div');wrap.className='muscle-map real-map';
+      const visual=document.createElement('div');visual.className='real-photo-box';visual.innerHTML='<div class="real-photo-loading">Buscando foto real…</div>';
+      const copy=document.createElement('div');copy.className='muscle-copy';
+      const h=document.createElement('b');h.textContent=p.label;copy.appendChild(h);
+      const pri=document.createElement('span');pri.innerHTML='<i class="dot primary"></i>Principal: '+p.primary.join(', ');copy.appendChild(pri);
+      if(p.secondary.length){const sec=document.createElement('span');sec.innerHTML='<i class="dot secondary"></i>Também: '+p.secondary.join(', ');copy.appendChild(sec)}
+      wrap.append(visual,copy);
       const how=card.querySelector('.how');if(how)card.insertBefore(wrap,how);else{const hint=card.querySelector('.hint');hint?hint.insertAdjacentElement('afterend',wrap):card.appendChild(wrap)}
-    })
+      findPhoto(title).then(photo=>{if(document.body.contains(visual))setPhoto(visual,title,photo)});
+    });
   }
   const base=window.renderList;if(typeof base==='function')window.renderList=function(){base.apply(this,arguments);requestAnimationFrame(enhance)};
-  const style=document.createElement('style');style.textContent='.muscle-map{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 10px}.muscle-art{width:112px;flex:0 0 112px}.muscle-svg{display:block;width:100%;height:auto}.muscle-svg .mm-body{fill:none;stroke:#aeb7ad;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.72}.muscle-svg .mm-off{fill:#dfe4dd;opacity:.45}.muscle-svg .mm-primary{fill:var(--acc);opacity:.96}.muscle-svg .mm-secondary{fill:var(--hot);opacity:.72}.muscle-svg text{fill:var(--mute);font:600 7px Barlow,system-ui,sans-serif;text-anchor:middle}.muscle-copy{display:grid;gap:4px;min-width:0}.muscle-copy>b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.3}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.primary{background:var(--acc)}.muscle-copy .dot.secondary{background:var(--hot)}@media(max-width:390px){.muscle-art{width:96px;flex-basis:96px}.muscle-map{gap:9px;padding:7px 8px}.muscle-copy>b{font-size:16px}.muscle-copy span{font-size:11px}}';document.head.appendChild(style);
+
+  const style=document.createElement('style');
+  style.textContent='.muscle-map.real-map{display:grid;grid-template-columns:142px minmax(0,1fr);align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0 10px}.real-photo-box{position:relative;width:142px;height:112px;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--line) 58%,var(--card));border:1px solid var(--line)}.real-exercise-photo{display:block;width:100%;height:100%;object-fit:cover;object-position:center}.real-photo-loading,.real-photo-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:12px}.real-photo-empty{flex-direction:column;gap:3px}.real-photo-empty small{font-size:10px;line-height:1.25}.real-photo-credit{position:absolute;left:4px;right:4px;bottom:4px;padding:3px 5px;border-radius:5px;background:rgba(0,0,0,.64);color:#fff;font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muscle-copy{display:grid;gap:4px;min-width:0}.muscle-copy>b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.muscle-copy span{font-size:12px;color:var(--mute);line-height:1.3}.muscle-copy .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.muscle-copy .dot.primary{background:var(--acc)}.muscle-copy .dot.secondary{background:var(--hot)}@media(max-width:390px){.muscle-map.real-map{grid-template-columns:118px minmax(0,1fr);gap:9px;padding:7px 8px}.real-photo-box{width:118px;height:96px}.muscle-copy>b{font-size:16px}.muscle-copy span{font-size:11px}}';
+  document.head.appendChild(style);
 })();
