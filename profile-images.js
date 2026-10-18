@@ -32,4 +32,34 @@
     }catch(e){}
     return response;
   };
+
+  // The first women's pack was exported on a 4:3 white canvas with the
+  // exercise photo centered inside it. Crop that canvas only at display time
+  // so the photo fills the exercise card without modifying the uploaded files.
+  const style=document.createElement('style');
+  style.textContent=`
+    .women-pack1-box{aspect-ratio:3/4;background:#fff}
+    .women-pack1-box .real-exercise-photo{
+      width:100%;height:100%;object-fit:cover;
+      transform:scale(2);transform-origin:50% 50%;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function fixWomenImages(root=document){
+    root.querySelectorAll?.('img.real-exercise-photo').forEach(img=>{
+      let file='';
+      try{file=new URL(img.src,location.href).pathname.split('/').pop()||''}catch(e){}
+      if(!img.src.includes('/img_women/')||!WOMEN_FILES.has(file))return;
+      img.parentElement?.classList.add('women-pack1-box');
+    });
+  }
+  const observer=new MutationObserver(()=>fixWomenImages());
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>{
+      fixWomenImages();observer.observe(document.body,{childList:true,subtree:true});
+    },{once:true});
+  }else{
+    fixWomenImages();observer.observe(document.body,{childList:true,subtree:true});
+  }
 })();
