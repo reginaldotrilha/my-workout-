@@ -5,8 +5,9 @@
   if(profile!=='sandra')return;
 
   const WOMEN_FILES=new Set([
-    'bench_press.png','incline_press.png','pec_deck.png','skullcrusher.png','rope_pushdown.png',
-    'lat_pulldown.png','barbell_row.png','one_arm_row.png','barbell_curl.png','hammer_curl.png'
+    'bench_press.png','incline_press.png','pec_deck.png','rope_pushdown.png',
+    'lat_pulldown.png','barbell_row.png','barbell_curl.png','overhead_press.png',
+    'lateral_raise.png','leg_press.png'
   ]);
 
   const nativeFetch=window.fetch.bind(window);
