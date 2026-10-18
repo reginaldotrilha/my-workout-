@@ -1,13 +1,15 @@
 // Profile-specific exercise image paths.
-// Sandra uses img_women/ for files that exist there; other profiles keep img/.
+// Sandra uses img_women/ whenever the corresponding female image exists.
+// Reginaldo and Eric keep using img/.
 (function(){
   const profile=window.MeuTreinoProfiles?.current?.()||'reginaldo';
   if(profile!=='sandra')return;
 
   const WOMEN_FILES=new Set([
-    'bench_press.png','incline_press.png','pec_deck.png','rope_pushdown.png',
-    'lat_pulldown.png','barbell_row.png','barbell_curl.png','overhead_press.png',
-    'lateral_raise.png','leg_press.png'
+    'bench_press.png','incline_press.png','pec_deck.png','skullcrusher.png','rope_pushdown.png',
+    'lat_pulldown.png','barbell_row.png','one_arm_row.png','barbell_curl.png','hammer_curl.png',
+    'back_squat.png','leg_press.png','romanian_deadlift.png','leg_curl.png','calf_raise.png',
+    'overhead_press.png','lateral_raise.png','face_pull.png','shrug.png','plank.png'
   ]);
 
   const nativeFetch=window.fetch.bind(window);
@@ -32,34 +34,4 @@
     }catch(e){}
     return response;
   };
-
-  // The first women's pack was exported on a 4:3 white canvas with the
-  // exercise photo centered inside it. Crop that canvas only at display time
-  // so the photo fills the exercise card without modifying the uploaded files.
-  const style=document.createElement('style');
-  style.textContent=`
-    .women-pack1-box{aspect-ratio:3/4;background:#fff}
-    .women-pack1-box .real-exercise-photo{
-      width:100%;height:100%;object-fit:cover;
-      transform:scale(2);transform-origin:50% 50%;
-    }
-  `;
-  document.head.appendChild(style);
-
-  function fixWomenImages(root=document){
-    root.querySelectorAll?.('img.real-exercise-photo').forEach(img=>{
-      let file='';
-      try{file=new URL(img.src,location.href).pathname.split('/').pop()||''}catch(e){}
-      if(!img.src.includes('/img_women/')||!WOMEN_FILES.has(file))return;
-      img.parentElement?.classList.add('women-pack1-box');
-    });
-  }
-  const observer=new MutationObserver(()=>fixWomenImages());
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>{
-      fixWomenImages();observer.observe(document.body,{childList:true,subtree:true});
-    },{once:true});
-  }else{
-    fixWomenImages();observer.observe(document.body,{childList:true,subtree:true});
-  }
 })();
