@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-20",
+  "totalExercises": 85,
+  "imageBasePath": "assets/exercises/men",
+  "sex": "male",
+  "notes": "Catálogo masculino. Os arquivos de imagem serão adicionados pelo usuário na pasta assets/exercises/men. A interface deve funcionar mesmo quando uma imagem ainda não existir.",
+  "exercises": []
+}
