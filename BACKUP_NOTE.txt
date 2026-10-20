@@ -1,1 +1,6 @@
-Backup marker only. Pre-change source is preserved in branch backup-before-exercise-catalog-2026-10-20 at commit 04ff3032add747b4b195cf75dcf3c1cb1be65550.
+Pre-catalog-integration backup preserved in branch:
+backup-before-exercise-catalog-integration-2026-10-20
+
+Base commit before catalog integration: 3e33a54290574957a03ef4d2f112f72e764cf7c4
+
+The workout data format/localStorage key was not changed by the catalog integration.
