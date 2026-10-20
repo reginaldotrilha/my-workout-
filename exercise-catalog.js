@@ -5,13 +5,14 @@
   const byId=new Map(),byName=new Map();
   const nativeFetch=window.fetch.bind(window);
   const norm=s=>String(s||'').trim().toLocaleLowerCase('pt-BR');
+  const activeProfile=()=>window.MeuTreinoProfiles?.current?.()||'reginaldo';
 
   const ready=nativeFetch('exercise_catalog.json')
     .then(r=>r.ok?r.json():null)
     .then(data=>{
       items=Array.isArray(data?.exercises)?data.exercises:[];
       items.forEach(x=>{if(x?.id)byId.set(x.id,x);if(x?.name)byName.set(norm(x.name),x)});
-      requestAnimationFrame(enhanceEditor);
+      requestAnimationFrame(()=>{enhanceEditor();enhanceWorkoutTypes();setTimeout(ensureCatalogImages,0)});
       return items;
     })
     .catch(()=>[]);
@@ -23,7 +24,8 @@
     byName:name=>byName.get(norm(name))||null
   };
 
-  // Merge catalog image paths into the existing local-image map. New male images stay in img/.
+  // Merge male catalog image paths into the current local-image map.
+  // Sandra keeps only the female image mappings already available; the rest will be added later in img_women/.
   window.fetch=async function(input,init){
     const response=await nativeFetch(input,init);
     try{
@@ -32,7 +34,7 @@
       if(url.pathname.endsWith('/exercise-images.json')){
         await ready;
         const data=await response.clone().json();
-        items.forEach(x=>{if(x?.name&&x?.file&&!data[x.name])data[x.name]={file:x.file}});
+        if(activeProfile()!=='sandra')items.forEach(x=>{if(x?.name&&x?.file&&!data[x.name])data[x.name]={file:x.file}});
         return new Response(JSON.stringify(data),{
           status:response.status,
           statusText:response.statusText,
@@ -90,7 +92,7 @@
       const ex=plan.days[d]?.ex;if(!Array.isArray(ex))continue;
       arr.forEach((item,i)=>{
         const x=ex[i];if(!x||!item)return;
-        if(x.id!==item.id||x.name!==item.name||x.type!==item.type){x.id=item.id;x.name=item.name;x.type=item.type;x.catalogId=item.id;changed=true}
+        if(x.id!==item.id||x.name!==item.name||x.type!==item.type||x.catalogId!==item.id){x.id=item.id;x.name=item.name;x.type=item.type;x.catalogId=item.id;changed=true}
         if(PLAN[d]?.ex?.[i]){PLAN[d].ex[i][0]=item.name;PLAN[d].ex[i][3]=item.id}
       });
     }
@@ -129,14 +131,44 @@
     }
   }
 
+  // New catalog exercises can be reps-only or timed. Keep the current data model and only simplify the entry row.
+  function enhanceWorkoutTypes(){
+    const box=document.getElementById('list');if(!box||document.querySelector('#list .plan-editor'))return;
+    [...box.querySelectorAll(':scope > .ex')].forEach(card=>{
+      const title=card.querySelector('.ex-h h3')?.textContent,item=byName.get(norm(title));
+      if(!item||item.type==='weight_reps')return;
+      card.classList.add('exercise-'+item.type);
+      [...card.querySelectorAll('.set')].forEach((row,k)=>{
+        const inputs=[...row.querySelectorAll('input')];
+        if(inputs.length>=2)inputs[0].remove();
+        const valueInput=[...row.querySelectorAll('input')][0];if(!valueInput)return;
+        row.classList.add('simple-set');
+        valueInput.placeholder=item.type==='time'?'segundos':'reps';
+        valueInput.setAttribute('aria-label',item.type==='time'?'Duração da série '+(k+1)+' em segundos':'Repetições da série '+(k+1));
+      });
+    });
+  }
+
+  // Some new names do not yet have a muscle-profile rule in muscle-map.js. Show their local male image anyway.
+  function ensureCatalogImages(){
+    if(activeProfile()==='sandra')return;
+    const box=document.getElementById('list');if(!box||document.querySelector('#list .plan-editor'))return;
+    [...box.querySelectorAll(':scope > .ex')].forEach(card=>{
+      if(card.querySelector('.muscle-map,.catalog-photo-fallback'))return;
+      const title=card.querySelector('.ex-h h3')?.textContent,item=byName.get(norm(title));if(!item?.file)return;
+      const wrap=document.createElement('div');wrap.className='catalog-photo-fallback';const img=document.createElement('img');img.src=item.file;img.alt='Demonstração de '+item.name;img.loading='lazy';img.decoding='async';img.onerror=()=>wrap.remove();wrap.appendChild(img);
+      const how=card.querySelector('.how'),hint=card.querySelector('.hint');if(how)card.insertBefore(wrap,how);else if(hint)hint.insertAdjacentElement('afterend',wrap);else card.appendChild(wrap);
+    });
+  }
+
   const base=window.renderList;
   if(typeof base==='function')window.renderList=function(){
     const r=base.apply(this,arguments);
-    requestAnimationFrame(enhanceEditor);
+    requestAnimationFrame(()=>{enhanceEditor();enhanceWorkoutTypes();setTimeout(ensureCatalogImages,0)});
     return r;
   };
 
   const style=document.createElement('style');
-  style.textContent='.edit-exercise .catalog-picker{grid-column:1/-1;display:grid;gap:4px}.catalog-picker>span{font-size:12px;color:var(--mute);font-weight:600}.catalog-select{width:100%;min-width:0;padding:9px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:600 15px Barlow,system-ui,sans-serif}.catalog-select:focus-visible{outline:3px solid var(--hot);outline-offset:2px}';
+  style.textContent='.edit-exercise .catalog-picker{grid-column:1/-1;display:grid;gap:4px}.catalog-picker>span{font-size:12px;color:var(--mute);font-weight:600}.catalog-select{width:100%;min-width:0;padding:9px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:600 15px Barlow,system-ui,sans-serif}.catalog-select:focus-visible{outline:3px solid var(--hot);outline-offset:2px}.catalog-photo-fallback{width:100%;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--bg);margin:8px 0 10px}.catalog-photo-fallback img{display:block;width:100%;height:auto;object-fit:cover}.set.simple-set{grid-template-columns:24px 1fr 44px}';
   document.head.appendChild(style);
 })();
