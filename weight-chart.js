@@ -7,18 +7,26 @@
   function getRangeDays(card){const b=[...card.querySelectorAll('.range-tabs button')].find(x=>x.getAttribute('aria-pressed')==='true');if(!b)return 30;const x=b.textContent.trim();if(x==='7D')return 7;if(x==='30D')return 30;if(x==='3M')return 90;return 0}
   function rawPoints(card){const days=getRangeDays(card),cut=days?Date.now()-days*864e5:0;return (db.body||[]).filter(x=>num(x.w)!==null&&x.t>=cut).slice().sort((a,b)=>a.t-b.t)}
   function dailyPoints(raw){const byDay=new Map();raw.forEach(x=>byDay.set(localDay(x.t),x));return [...byDay.values()].sort((a,b)=>a.t-b.t)}
-  function labelIndexes(n,maxLabels=5){const s=new Set();if(n<=maxLabels){for(let i=0;i<n;i++)s.add(i);return s}for(let i=0;i<maxLabels;i++)s.add(Math.round(i*(n-1)/(maxLabels-1)));return s}
+  function labelIndexes(pts,maxLabels=5,minGap=48){
+    const n=pts.length,s=new Set();if(!n)return s;if(n===1){s.add(0);return s}
+    const candidates=[];
+    if(n<=maxLabels){for(let i=0;i<n;i++)candidates.push(i)}
+    else{for(let i=0;i<maxLabels;i++)candidates.push(Math.round(i*(n-1)/(maxLabels-1)))}
+    s.add(0);let last=0;
+    for(const i of candidates){if(i===0||i===n-1)continue;if(pts[i].x-pts[last].x>=minGap&&pts[n-1].x-pts[i].x>=minGap){s.add(i);last=i}}
+    s.add(n-1);return s
+  }
   function makeSvg(a){
     if(!a.length)return null;
-    const ns='http://www.w3.org/2000/svg',W=360,H=190,L=48,R=12,T=18,B=42;
+    const ns='http://www.w3.org/2000/svg',W=360,H=198,L=50,R=16,T=20,B=48;
     const vals=a.map(x=>Number(x.w)),mn=Math.min(...vals),mx=Math.max(...vals),pad=Math.max(.3,(mx-mn)*.2),lo=mn-pad,hi=mx+pad,rg=hi-lo||1;
     const minT=a[0].t,maxT=a[a.length-1].t,tr=maxT-minT||1;
     const pts=a.map((x,i)=>({x:a.length===1?(L+(W-R))/2:L+((x.t-minT)/tr)*(W-L-R),y:T+((hi-x.w)/rg)*(H-T-B),w:Number(x.w),t:x.t,i}));
     const s=document.createElementNS(ns,'svg');s.setAttribute('viewBox','0 0 '+W+' '+H);s.setAttribute('class','weight-detail-chart');s.setAttribute('role','img');s.setAttribute('aria-label','Tendência do peso com datas e valores');
-    [hi,(hi+lo)/2,lo].forEach(v=>{const y=T+((hi-v)/rg)*(H-T-B),line=document.createElementNS(ns,'line');line.setAttribute('x1',L);line.setAttribute('x2',W-R);line.setAttribute('y1',y);line.setAttribute('y2',y);line.setAttribute('stroke','var(--line)');line.setAttribute('stroke-width','1');s.appendChild(line);const tx=document.createElementNS(ns,'text');tx.setAttribute('x',L-6);tx.setAttribute('y',y+4);tx.setAttribute('text-anchor','end');tx.setAttribute('fill','var(--mute)');tx.setAttribute('font-size','11');tx.textContent=fmt(v)+' kg';s.appendChild(tx)});
+    [hi,(hi+lo)/2,lo].forEach(v=>{const y=T+((hi-v)/rg)*(H-T-B),line=document.createElementNS(ns,'line');line.setAttribute('x1',L);line.setAttribute('x2',W-R);line.setAttribute('y1',y);line.setAttribute('y2',y);line.setAttribute('stroke','var(--line)');line.setAttribute('stroke-width','1');s.appendChild(line);const tx=document.createElementNS(ns,'text');tx.setAttribute('x',L-7);tx.setAttribute('y',y+4);tx.setAttribute('text-anchor','end');tx.setAttribute('fill','var(--mute)');tx.setAttribute('font-size','11');tx.textContent=fmt(v)+' kg';s.appendChild(tx)});
     if(pts.length>1){const pl=document.createElementNS(ns,'polyline');pl.setAttribute('points',pts.map(p=>p.x+','+p.y).join(' '));pl.setAttribute('fill','none');pl.setAttribute('stroke','var(--acc)');pl.setAttribute('stroke-width','3');pl.setAttribute('stroke-linecap','round');pl.setAttribute('stroke-linejoin','round');s.appendChild(pl)}
-    const labels=labelIndexes(pts.length,5);
-    pts.forEach((p,i)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',i===pts.length-1?'4.5':'3.5');c.setAttribute('fill',i===pts.length-1?'var(--hot)':'var(--acc)');const title=document.createElementNS(ns,'title');title.textContent=shortDate(p.t)+' · '+fmt(p.w)+' kg';c.appendChild(title);s.appendChild(c);if(labels.has(i)){const val=document.createElementNS(ns,'text');val.setAttribute('x',p.x);val.setAttribute('y',Math.max(12,p.y-9));val.setAttribute('text-anchor',i===0?'start':i===pts.length-1?'end':'middle');val.setAttribute('fill','var(--ink)');val.setAttribute('font-size','11');val.setAttribute('font-weight','600');val.textContent=fmt(p.w);s.appendChild(val);const dt=document.createElementNS(ns,'text');dt.setAttribute('x',p.x);dt.setAttribute('y',H-14);dt.setAttribute('text-anchor',i===0?'start':i===pts.length-1?'end':'middle');dt.setAttribute('fill','var(--mute)');dt.setAttribute('font-size','10');dt.textContent=axisDate(p.t);s.appendChild(dt)}});
+    const labels=labelIndexes(pts,5,48);
+    pts.forEach((p,i)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',i===pts.length-1?'4.5':'3.5');c.setAttribute('fill',i===pts.length-1?'var(--hot)':'var(--acc)');const title=document.createElementNS(ns,'title');title.textContent=shortDate(p.t)+' · '+fmt(p.w)+' kg';c.appendChild(title);s.appendChild(c);if(labels.has(i)){const val=document.createElementNS(ns,'text');val.setAttribute('x',p.x);val.setAttribute('y',Math.max(13,p.y-9));val.setAttribute('text-anchor',i===0?'start':i===pts.length-1?'end':'middle');val.setAttribute('fill','var(--ink)');val.setAttribute('font-size','11');val.setAttribute('font-weight','600');val.textContent=fmt(p.w);s.appendChild(val);const dt=document.createElementNS(ns,'text');dt.setAttribute('x',p.x);dt.setAttribute('y',H-16);dt.setAttribute('text-anchor',i===0?'start':i===pts.length-1?'end':'middle');dt.setAttribute('fill','var(--mute)');dt.setAttribute('font-size','10');dt.textContent=axisDate(p.t);s.appendChild(dt)}});
     return s
   }
   function enhanceWeightChart(){
