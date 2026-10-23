@@ -69,16 +69,35 @@
     const m=Math.floor(total/60),s=total%60;
     return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
   }
-  function ensurePanel(){
+  function findExerciseCard(name){
+    const list=document.getElementById('list');
+    if(!list||!name)return null;
+    const cards=Array.from(list.querySelectorAll('.ex'));
+    return cards.find(card=>{
+      const heading=card.querySelector('.ex-h h3')||card.querySelector('h3');
+      return heading&&heading.textContent&&heading.textContent.trim()===name;
+    })||null;
+  }
+  function ensurePanel(exerciseName){
     let panel=document.getElementById('restTimerPanel');
-    if(panel)return panel;
-    const tabs=document.getElementById('tabs');
-    if(!tabs)return null;
-    panel=document.createElement('div');
-    panel.id='restTimerPanel';
-    panel.className='rest-timer-panel hidden';
-    panel.setAttribute('aria-live','polite');
-    tabs.insertAdjacentElement('afterend',panel);
+    const card=findExerciseCard(exerciseName);
+
+    if(!panel){
+      panel=document.createElement('div');
+      panel.id='restTimerPanel';
+      panel.className='rest-timer-panel hidden';
+      panel.setAttribute('aria-live','polite');
+    }
+
+    if(card){
+      const rows=card.querySelectorAll('.set');
+      const lastSet=rows.length?rows[rows.length-1]:null;
+      if(lastSet){
+        if(panel.previousElementSibling!==lastSet)lastSet.insertAdjacentElement('afterend',panel);
+      }else if(panel.parentElement!==card){
+        card.appendChild(panel);
+      }
+    }
     return panel;
   }
   function button(label,cls,handler){
@@ -86,9 +105,14 @@
     b.type='button';b.className=cls;b.textContent=label;b.addEventListener('click',handler);return b;
   }
   function renderPanel(){
-    const panel=ensurePanel();
-    if(!panel)return;
-    if(!active){panel.classList.add('hidden');panel.innerHTML='';return}
+    const existing=document.getElementById('restTimerPanel');
+    if(!active){
+      if(existing){existing.classList.add('hidden');existing.innerHTML=''}
+      return;
+    }
+
+    const panel=ensurePanel(active.exerciseName);
+    if(!panel||!panel.parentElement)return;
 
     const remaining=active.endAt-Date.now();
     const ready=remaining<=0;
@@ -101,7 +125,7 @@
     const title=document.createElement('strong');
     title.textContent=ready?'Descanso concluído':'Descanso antes da série '+active.nextSet;
     const sub=document.createElement('span');
-    sub.textContent=active.exerciseName+(ready?' · pode começar':' · série '+active.completedSet+' concluída');
+    sub.textContent=ready?'Pode iniciar a série '+active.nextSet:'Série '+active.completedSet+' concluída';
     copy.append(title,sub);
 
     const clock=document.createElement('div');clock.className='rest-timer-clock';
@@ -165,7 +189,7 @@
     active=saved;
     if(active.endAt>Date.now())tickId=setInterval(tick,250);
     else active.endAt=Date.now();
-    renderPanel();
+    setTimeout(renderPanel,0);
   }
 
   // Capture the click before training.js re-renders the exercise card.
@@ -206,27 +230,37 @@
     if(active&&active.endAt<=Date.now())finishTimer(false);
   });
 
+  // Reattach the timer to its exercise if another feature redraws the workout list.
+  const list=document.getElementById('list');
+  if(list&&'MutationObserver' in window){
+    let pending=false;
+    new MutationObserver(()=>{
+      if(!active||pending)return;
+      pending=true;
+      requestAnimationFrame(()=>{pending=false;renderPanel()});
+    }).observe(list,{childList:true,subtree:true});
+  }
+
   const style=document.createElement('style');
   style.textContent=`
-    .rest-timer-panel{margin:12px 0 16px;padding:14px 16px;border:1px solid rgba(31,95,74,.28);border-radius:16px;background:#f4f8f5;color:#18352b}
+    .rest-timer-panel{margin:12px 0 14px;padding:13px 14px;border:1px solid rgba(31,95,74,.28);border-radius:14px;background:#f4f8f5;color:#18352b}
     .rest-timer-panel.hidden{display:none!important}
-    .rest-timer-top{display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .rest-timer-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .rest-timer-copy{display:flex;flex-direction:column;min-width:0;gap:3px}
     .rest-timer-copy strong{font-size:16px;line-height:1.2}
-    .rest-timer-copy span{font-size:13px;color:#607068;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rest-timer-clock{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:800;letter-spacing:.02em;flex:none}
-    .rest-timer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    .rest-btn{min-height:42px;border:1px solid #c8d4ce;border-radius:11px;background:#fff;color:#24483a;font:inherit;font-weight:700;padding:8px 12px}
+    .rest-timer-copy span{font-size:13px;color:#607068}
+    .rest-timer-clock{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:26px;font-weight:800;letter-spacing:.02em;flex:none}
+    .rest-timer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+    .rest-btn{min-height:40px;border:1px solid #c8d4ce;border-radius:10px;background:#fff;color:#24483a;font:inherit;font-weight:700;padding:7px 11px}
     .rest-btn:active{transform:scale(.98)}
-    .rest-time-btn{min-width:72px}
+    .rest-time-btn{min-width:68px}
     .rest-skip{margin-left:auto}
     .rest-start{background:#1f5f4a;color:#fff;border-color:#1f5f4a;margin-left:auto}
     .rest-ready{background:#e5f2eb;border-color:#1f5f4a}
     .rest-ready .rest-timer-clock{font-size:18px;color:#1f5f4a}
-    @media(max-width:420px){.rest-timer-clock{font-size:25px}.rest-skip{margin-left:0}.rest-timer-actions .rest-btn{flex:1 1 auto}}
+    @media(max-width:420px){.rest-timer-clock{font-size:23px}.rest-skip{margin-left:0}.rest-timer-actions .rest-btn{flex:1 1 auto}}
   `;
   document.head.appendChild(style);
 
-  ensurePanel();
   restoreTimer();
 })();
