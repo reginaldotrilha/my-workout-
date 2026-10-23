@@ -60,9 +60,38 @@
       });
     }catch(e){}
   }
+  async function requestAlerts(){
+    if(!('Notification' in window)||!('serviceWorker' in navigator)){
+      window.alert('Alertas do sistema não estão disponíveis neste dispositivo.');
+      return;
+    }
+    try{
+      const permission=await Notification.requestPermission();
+      if(permission==='granted'){
+        const reg=await navigator.serviceWorker.ready;
+        await reg.showNotification('Alertas ativados',{body:'O Meu Treino vai avisar quando o descanso terminar.',tag:'meu-treino-alerts-enabled',silent:false});
+      }else if(permission==='denied'){
+        window.alert('As notificações estão bloqueadas. Você pode liberá-las nos Ajustes do iPhone em Notificações > Meu Treino.');
+      }
+    }catch(e){}
+    renderPanel();
+  }
+  async function showSystemAlert(){
+    if(!active||!('Notification' in window)||Notification.permission!=='granted'||!('serviceWorker' in navigator))return;
+    try{
+      const reg=await navigator.serviceWorker.ready;
+      await reg.showNotification('Descanso concluído',{
+        body:active.exerciseName+' · iniciar série '+active.nextSet,
+        tag:'meu-treino-rest-ready',
+        renotify:true,
+        silent:false
+      });
+    }catch(e){}
+  }
   function notifyReady(){
     beep();
     try{if(navigator.vibrate)navigator.vibrate([180,90,180])}catch(e){}
+    showSystemAlert();
   }
   function formatTime(ms){
     const total=Math.max(0,Math.ceil(ms/1000));
@@ -143,6 +172,16 @@
       actions.appendChild(button('Iniciar série '+active.nextSet,'rest-btn rest-start',clearTimer));
     }
     panel.appendChild(actions);
+
+    if('Notification' in window&&Notification.permission!=='granted'){
+      const alertRow=document.createElement('div');alertRow.className='rest-alert-row';
+      if(Notification.permission==='default'){
+        alertRow.appendChild(button('Ativar alertas no iPhone / Watch','rest-alert-btn',requestAlerts));
+      }else{
+        const blocked=document.createElement('span');blocked.className='rest-alert-blocked';blocked.textContent='Alertas bloqueados nos Ajustes do iPhone';alertRow.appendChild(blocked);
+      }
+      panel.appendChild(alertRow);
+    }
   }
   function editExerciseTime(){
     if(!active)return;
@@ -252,12 +291,15 @@
     .rest-timer-clock{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:26px;font-weight:800;letter-spacing:.02em;flex:none}
     .rest-timer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
     .rest-btn{min-height:40px;border:1px solid #c8d4ce;border-radius:10px;background:#fff;color:#24483a;font:inherit;font-weight:700;padding:7px 11px}
-    .rest-btn:active{transform:scale(.98)}
+    .rest-btn:active,.rest-alert-btn:active{transform:scale(.98)}
     .rest-time-btn{min-width:68px}
     .rest-skip{margin-left:auto}
     .rest-start{background:#1f5f4a;color:#fff;border-color:#1f5f4a;margin-left:auto}
     .rest-ready{background:#e5f2eb;border-color:#1f5f4a}
     .rest-ready .rest-timer-clock{font-size:18px;color:#1f5f4a}
+    .rest-alert-row{margin-top:10px;padding-top:10px;border-top:1px solid rgba(31,95,74,.16)}
+    .rest-alert-btn{width:100%;min-height:40px;border:1px solid #1f5f4a;border-radius:10px;background:#fff;color:#1f5f4a;font:inherit;font-size:13px;font-weight:700;padding:8px 10px}
+    .rest-alert-blocked{display:block;font-size:12px;color:#7b625b;text-align:center}
     @media(max-width:420px){.rest-timer-clock{font-size:23px}.rest-skip{margin-left:0}.rest-timer-actions .rest-btn{flex:1 1 auto}}
   `;
   document.head.appendChild(style);
