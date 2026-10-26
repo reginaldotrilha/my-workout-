@@ -22,7 +22,7 @@
     `;
     document.head.appendChild(style);
 
-    function activeDraft(){return Object.values(db.draft||{}).some(x=>Object.values(x||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s&&(s.ok||String(s.w??'').trim()||String(s.r??'').trim()||String(s.seconds??'').trim()))));}
+    function activeDraft(){return Object.values(db.draft||{}).some(x=>Object.values(x||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s&&s.ok)));}
     function info(d){const q=db.training?.current?.days?.[d];return [q?.name||META[d]?.[0]||('Treino '+d),q?.muscles||META[d]?.[1]||''];}
     function decorate(){
       const box=$('tabs');if(!box)return;box.classList.add('named-tabs');
