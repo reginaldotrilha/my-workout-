@@ -53,9 +53,7 @@
     const arr=log.planSnapshot?.days?.[log.day]?.ex||planDayObjects(log.day);
     return Object.entries(log.ex||{}).map(([i,sets])=>({name:arr[Number(i)]?.name||('Exercício '+(Number(i)+1)),sets:sets||[]}));
   }
-  function accumulateExercise(out,name,setCount){
-    muscles(name).forEach(([m,w])=>add(out,m,setCount*w));
-  }
+  function accumulateExercise(out,name,setCount){muscles(name).forEach(([m,w])=>add(out,m,setCount*w));}
   function stressFromLog(log){const out={};logObjects(log).forEach(x=>accumulateExercise(out,x.name,x.sets.length));return out}
   function weeklyStress(){
     const out={},cut=Date.now()-7*DAY;
@@ -79,6 +77,13 @@
     return out;
   }
 
+  function metricLine(label,value){
+    const line=document.createElement('div');line.className='muscle-stress-metric';
+    const k=document.createElement('span');k.textContent=label;
+    const v=document.createElement('b');v.textContent=value;
+    line.append(k,v);return line;
+  }
+
   function row(name,v,weekly,withRemaining,last){
     const st=status(v),rec=recovery(v),r=document.createElement('div');r.className='muscle-stress-row '+st.cls;
     const top=document.createElement('div');top.className='muscle-stress-top';
@@ -86,10 +91,15 @@
     const badge=document.createElement('span');badge.className='muscle-stress-badge';badge.textContent=st.label;
     top.append(n,badge);
     const bar=document.createElement('div');bar.className='muscle-stress-bar';const fill=document.createElement('i');fill.style.width=Math.min(100,(v/12)*100)+'%';bar.appendChild(fill);
-    const meta=document.createElement('div');meta.className='muscle-stress-meta';
-    let text=fmt(v)+' séries efetivas · 7 dias: '+fmt(weekly||0)+' · recuperação ~'+rec[0]+'–'+rec[1]+' h';
-    if(withRemaining&&last){const elapsed=Math.max(0,(Date.now()-last.t)/HOUR),remaining=Math.max(0,rec[1]-elapsed);text+=remaining>0?' · até ~'+Math.ceil(remaining)+' h restantes':' · recuperação estimada concluída';}
-    meta.textContent=text;r.append(top,bar,meta);return r;
+    const metrics=document.createElement('div');metrics.className='muscle-stress-metrics';
+    metrics.appendChild(metricLine(withRemaining?'Última sessão':'Hoje',fmt(v)+' séries efetivas'));
+    metrics.appendChild(metricLine('Últimos 7 dias',fmt(weekly||0)+' séries efetivas'));
+    metrics.appendChild(metricLine('Recuperação estimada',rec[0]+'–'+rec[1]+' h'));
+    if(withRemaining&&last){
+      const elapsed=Math.max(0,(Date.now()-last.t)/HOUR),remaining=Math.max(0,rec[1]-elapsed);
+      metrics.appendChild(metricLine('Situação',remaining>0?'até ~'+Math.ceil(remaining)+' h restantes':'recuperação estimada concluída'));
+    }
+    r.append(top,bar,metrics);return r;
   }
 
   function trainingCard(){
@@ -117,7 +127,9 @@
 
   const s=document.createElement('style');s.textContent=`
     .muscle-stress-card{padding:13px}.muscle-stress-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}.muscle-stress-head h3{font-size:21px}.muscle-stress-head>div>span{display:block;color:var(--mute);font-size:12px;margin-top:2px}.estimate-pill{font-size:11px;font-weight:700;color:var(--acc);background:var(--ok);border-radius:999px;padding:5px 8px;white-space:nowrap}
-    .muscle-stress-row{padding:8px 0;border-top:1px solid var(--line)}.muscle-stress-row:first-of-type{border-top:0}.muscle-stress-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.muscle-stress-top b{font-size:14px}.muscle-stress-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bg);color:var(--mute)}
-    .muscle-stress-bar{height:7px;background:var(--line);border-radius:999px;overflow:hidden;margin:6px 0 4px}.muscle-stress-bar i{display:block;height:100%;background:var(--acc);border-radius:inherit}.muscle-stress-row.high .muscle-stress-bar i{background:var(--hot)}.muscle-stress-row.excess .muscle-stress-bar i{background:#a73f2a}.muscle-stress-row.excess .muscle-stress-badge{color:#a73f2a;font-weight:800}.muscle-stress-meta{color:var(--mute);font-size:11px;line-height:1.3}.muscle-stress-note{margin:9px 0 0;padding-top:8px;border-top:1px solid var(--line);color:var(--mute);font-size:11px;line-height:1.35}
+    .muscle-stress-row{padding:10px 0;border-top:1px solid var(--line)}.muscle-stress-row:first-of-type{border-top:0}.muscle-stress-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.muscle-stress-top b{font-size:15px}.muscle-stress-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bg);color:var(--mute)}
+    .muscle-stress-bar{height:7px;background:var(--line);border-radius:999px;overflow:hidden;margin:7px 0 7px}.muscle-stress-bar i{display:block;height:100%;background:var(--acc);border-radius:inherit}.muscle-stress-row.high .muscle-stress-bar i{background:var(--hot)}.muscle-stress-row.excess .muscle-stress-bar i{background:#a73f2a}.muscle-stress-row.excess .muscle-stress-badge{color:#a73f2a;font-weight:800}
+    .muscle-stress-metrics{display:grid;gap:3px}.muscle-stress-metric{display:flex;justify-content:space-between;gap:14px;align-items:baseline;font-size:12px;line-height:1.35}.muscle-stress-metric span{color:var(--mute)}.muscle-stress-metric b{color:var(--ink);font-size:12px;text-align:right;font-weight:700}.muscle-stress-note{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line);color:var(--mute);font-size:11px;line-height:1.35}
+    @media(max-width:390px){.muscle-stress-metric{font-size:11px}.muscle-stress-metric b{font-size:11px}}
   `;document.head.appendChild(s);
 })();
