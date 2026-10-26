@@ -9,8 +9,8 @@
     const p=db.training.current;
     if(p.programVersion===VERSION)return;
 
-    // Do not remap an exercise session already in progress.
-    const activeDraft=Object.values(db.draft||{}).some(dayDraft=>Object.values(dayDraft||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s&&(s.ok||String(s.w??'').trim()||String(s.r??'').trim()||String(s.seconds??'').trim()))));
+    // Do not remap a session that is actually in progress. Prefilled historical weights alone do not count.
+    const activeDraft=Object.values(db.draft||{}).some(dayDraft=>Object.values(dayDraft||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s&&s.ok)));
     if(activeDraft)return;
 
     const ex=(id,name,target,sets,type='weight_reps')=>({id,name,target,sets,type,catalogId:id});
