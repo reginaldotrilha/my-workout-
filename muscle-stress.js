@@ -1,6 +1,7 @@
 // Muscle stress + recovery estimator. Heuristic, not a physiological measurement.
 (function(){
-  const DAY=864e5,HOUR=36e5;
+  const DAY=864e5,HOUR=36e5,VIEW_KEY='treino_muscle_stress_view_v1';
+  let stressView=localStorage.getItem(VIEW_KEY)==='week'?'week':'today';
   const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const add=(o,k,v)=>{o[k]=(o[k]||0)+v};
 
@@ -26,11 +27,17 @@
     return [];
   }
 
-  function status(v){
+  function sessionStatus(v){
     if(v<=3)return {label:'Leve',cls:'low'};
     if(v<=6)return {label:'Moderado',cls:'moderate'};
     if(v<=10)return {label:'Alto',cls:'high'};
-    return {label:'Possivelmente excessivo',cls:'excess'};
+    return {label:'Muito alto',cls:'excess'};
+  }
+  function weekStatus(v){
+    if(v<=8)return {label:'Baixo',cls:'low'};
+    if(v<=14)return {label:'Moderado',cls:'moderate'};
+    if(v<=20)return {label:'Alto',cls:'high'};
+    return {label:'Muito alto',cls:'excess'};
   }
   function recovery(v){
     if(v<=3)return [24,36];
@@ -76,6 +83,7 @@
     });
     return out;
   }
+  function withCurrent(base,current){const out=Object.assign({},base);Object.entries(current||{}).forEach(([m,v])=>add(out,m,v));return out}
 
   function metricLine(label,value){
     const line=document.createElement('div');line.className='muscle-stress-metric';
@@ -84,15 +92,18 @@
     line.append(k,v);return line;
   }
 
-  function row(name,v,weekly,withRemaining,last){
-    const st=status(v),rec=recovery(v),r=document.createElement('div');r.className='muscle-stress-row '+st.cls;
+  function row(name,today,weekly,withRemaining,last){
+    const selected=stressView==='week'?weekly:today;
+    const st=stressView==='week'?weekStatus(selected):sessionStatus(selected);
+    const rec=recovery(today),r=document.createElement('div');r.className='muscle-stress-row '+st.cls;
     const top=document.createElement('div');top.className='muscle-stress-top';
     const n=document.createElement('b');n.textContent=name;
     const badge=document.createElement('span');badge.className='muscle-stress-badge';badge.textContent=st.label;
     top.append(n,badge);
-    const bar=document.createElement('div');bar.className='muscle-stress-bar';const fill=document.createElement('i');fill.style.width=Math.min(100,(v/12)*100)+'%';bar.appendChild(fill);
+    const bar=document.createElement('div');bar.className='muscle-stress-bar';const fill=document.createElement('i');
+    fill.style.width=Math.min(100,(selected/(stressView==='week'?24:12))*100)+'%';bar.appendChild(fill);
     const metrics=document.createElement('div');metrics.className='muscle-stress-metrics';
-    metrics.appendChild(metricLine(withRemaining?'Última sessão':'Hoje',fmt(v)+' séries efetivas'));
+    metrics.appendChild(metricLine(withRemaining?'Última sessão':'Hoje',fmt(today)+' séries efetivas'));
     metrics.appendChild(metricLine('Últimos 7 dias',fmt(weekly||0)+' séries efetivas'));
     metrics.appendChild(metricLine('Recuperação estimada',rec[0]+'–'+rec[1]+' h'));
     if(withRemaining&&last){
@@ -102,14 +113,26 @@
     r.append(top,bar,metrics);return r;
   }
 
+  function switcher(card,rerender){
+    const sw=document.createElement('div');sw.className='muscle-stress-switch';
+    [['today','Hoje'],['week','7 dias']].forEach(([key,label])=>{
+      const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-pressed',stressView===key);
+      b.onclick=()=>{if(stressView===key)return;stressView=key;try{localStorage.setItem(VIEW_KEY,key)}catch(e){}rerender()};sw.appendChild(b);
+    });
+    card.appendChild(sw);
+    const cap=document.createElement('div');cap.className='muscle-stress-view-label';cap.textContent=stressView==='week'?'Barra e classificação: carga acumulada nos últimos 7 dias':'Barra e classificação: stress do treino de hoje';card.appendChild(cap);
+  }
+
   function trainingCard(){
-    const done=currentStress(false),planned=currentStress(true),hasDone=Object.values(done).some(v=>v>0),data=hasDone?done:planned,week=weeklyStress();
-    if(!hasDone)Object.entries(data).forEach(([m,v])=>week[m]=(week[m]||0)+v);
-    const entries=Object.entries(data).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);if(!entries.length)return null;
+    const done=currentStress(false),planned=currentStress(true),hasDone=Object.values(done).some(v=>v>0),today=hasDone?done:planned;
+    const week=withCurrent(weeklyStress(),today);
+    const names=[...new Set([...Object.keys(today),...Object.keys(week)])].filter(m=>(today[m]||0)>0).sort((a,b)=>(stressView==='week'?(week[b]||0)-(week[a]||0):(today[b]||0)-(today[a]||0)));
+    if(!names.length)return null;
     const c=document.createElement('div');c.className='ex muscle-stress-card';
     const h=document.createElement('div');h.className='muscle-stress-head';h.innerHTML='<div><h3>Stress muscular</h3><span>'+(hasDone?'Séries concluídas nesta sessão':'Previsão do treino planejado')+'</span></div><span class="estimate-pill">estimativa</span>';c.appendChild(h);
-    entries.forEach(([m,v])=>c.appendChild(row(m,v,week[m]||0,false,null)));
-    const note=document.createElement('p');note.className='muscle-stress-note';note.textContent='Série principal = 1,0; participação secundária = 0,5. A recuperação é uma faixa estimada, não uma medição direta do músculo.';c.appendChild(note);
+    switcher(c,()=>render());
+    names.forEach(m=>c.appendChild(row(m,today[m]||0,week[m]||0,false,null)));
+    const note=document.createElement('p');note.className='muscle-stress-note';note.textContent='Hoje e 7 dias usam escalas diferentes. Série principal = 1,0; participação secundária = 0,5. “Muito alto” é um alerta de volume, não prova de excesso ou lesão.';c.appendChild(note);
     return c;
   }
 
@@ -126,9 +149,10 @@
   if(typeof renderProg==='function'){const base=renderProg;renderProg=function(){base.apply(this,arguments);const v=$('vProg'),card=recoveryCard();if(v&&card)v.insertBefore(card,v.firstChild);};}
 
   const s=document.createElement('style');s.textContent=`
-    .muscle-stress-card{padding:13px}.muscle-stress-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}.muscle-stress-head h3{font-size:21px}.muscle-stress-head>div>span{display:block;color:var(--mute);font-size:12px;margin-top:2px}.estimate-pill{font-size:11px;font-weight:700;color:var(--acc);background:var(--ok);border-radius:999px;padding:5px 8px;white-space:nowrap}
-    .muscle-stress-row{padding:10px 0;border-top:1px solid var(--line)}.muscle-stress-row:first-of-type{border-top:0}.muscle-stress-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.muscle-stress-top b{font-size:15px}.muscle-stress-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bg);color:var(--mute)}
-    .muscle-stress-bar{height:7px;background:var(--line);border-radius:999px;overflow:hidden;margin:7px 0 7px}.muscle-stress-bar i{display:block;height:100%;background:var(--acc);border-radius:inherit}.muscle-stress-row.high .muscle-stress-bar i{background:var(--hot)}.muscle-stress-row.excess .muscle-stress-bar i{background:#a73f2a}.muscle-stress-row.excess .muscle-stress-badge{color:#a73f2a;font-weight:800}
+    .muscle-stress-card{padding:13px}.muscle-stress-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}.muscle-stress-head h3{font-size:21px}.muscle-stress-head>div>span{display:block;color:var(--mute);font-size:12px;margin-top:2px}.estimate-pill{font-size:11px;font-weight:700;color:var(--acc);background:var(--ok);border-radius:999px;padding:5px 8px;white-space:nowrap}
+    .muscle-stress-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--line);border-radius:10px;margin:8px 0 5px}.muscle-stress-switch button{border:0;border-radius:7px;padding:7px 10px;background:transparent;color:var(--mute);font:700 13px Barlow,system-ui,sans-serif}.muscle-stress-switch button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}.muscle-stress-view-label{color:var(--mute);font-size:11px;text-align:center;margin:0 0 7px}
+    .muscle-stress-row{padding:10px 0;border-top:1px solid var(--line)}.muscle-stress-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.muscle-stress-top b{font-size:15px}.muscle-stress-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bg);color:var(--mute)}
+    .muscle-stress-bar{height:7px;background:var(--line);border-radius:999px;overflow:hidden;margin:7px 0}.muscle-stress-bar i{display:block;height:100%;background:var(--acc);border-radius:inherit}.muscle-stress-row.high .muscle-stress-bar i{background:var(--hot)}.muscle-stress-row.excess .muscle-stress-bar i{background:#a73f2a}.muscle-stress-row.excess .muscle-stress-badge{color:#a73f2a;font-weight:800}
     .muscle-stress-metrics{display:grid;gap:3px}.muscle-stress-metric{display:flex;justify-content:space-between;gap:14px;align-items:baseline;font-size:12px;line-height:1.35}.muscle-stress-metric span{color:var(--mute)}.muscle-stress-metric b{color:var(--ink);font-size:12px;text-align:right;font-weight:700}.muscle-stress-note{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line);color:var(--mute);font-size:11px;line-height:1.35}
     @media(max-width:390px){.muscle-stress-metric{font-size:11px}.muscle-stress-metric b{font-size:11px}}
   `;document.head.appendChild(s);
