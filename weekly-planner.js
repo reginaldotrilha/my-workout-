@@ -46,16 +46,14 @@
     }
     return {day:k,stress,blocked,score,reasons:[...new Set(reasons)],week};
   }
-  function recentActualDay(events,ts){
-    const x=[...events].filter(e=>e.actual&&e.t<ts).sort((a,b)=>b.t-a.t)[0];return x||null;
-  }
   function shouldForceRest(events,ts){
-    const last=[...events].filter(e=>e.t<ts).sort((a,b)=>b.t-a.t)[0];if(!last)return null;
-    const hours=(ts-last.t)/HOUR;
-    if(hours<=38&&(last.day==='C'||last.day==='E'))return 'Descanso planejado após o treino '+last.day;
-    const dates=new Set(events.filter(e=>e.t<ts&&e.t>=ts-4*DAY).map(e=>dateKey(new Date(e.t))));
-    let streak=0;for(let i=1;i<=3;i++){const d=new Date(ts-i*DAY);if(dates.has(dateKey(d)))streak++;else break}
-    if(streak>=3)return 'Três dias seguidos de treino';
+    const dates=new Set(events.filter(e=>e.t<ts&&e.t>=ts-6*DAY).map(e=>dateKey(new Date(e.t))));
+    let streak=0;
+    for(let i=1;i<=5;i++){
+      const d=new Date(ts-i*DAY);
+      if(dates.has(dateKey(d)))streak++;else break;
+    }
+    if(streak>=5)return 'Cinco dias seguidos de musculação';
     return null;
   }
   function pickWorkout(due,used,ts,events){
@@ -73,7 +71,7 @@
   }
   function schedule(){
     const a=api(),p=plan();if(!a||!p)return [];
-    const now=new Date(),today0=startOfDay(now),events=eventList(),actualToday=completedToday();
+    const now=new Date(),today0=startOfDay(now),events=eventList();
     let due=nextDue(),used=new Set(),out=[];
     for(let i=0;i<7;i++){
       const d=new Date(today0.getTime()+i*DAY);const ts=new Date(d);ts.setHours(i===0?Math.max(now.getHours(),12):18,0,0,0);const stamp=ts.getTime();
@@ -122,7 +120,7 @@
       const btn=document.createElement('button');btn.type='button';btn.className='ghost small';btn.textContent='Abrir '+t.day;btn.onclick=()=>selectWorkout(t.day);detail.appendChild(btn);
     }
     c.appendChild(detail);
-    const note=document.createElement('div');note.className='planner-note';note.textContent='O calendário é uma recomendação: usa treinos registrados, recuperação estimada e volume dos últimos 7 dias. Ele se recalcula quando você finaliza um treino.';c.appendChild(note);
+    const note=document.createElement('div');note.className='planner-note';note.textContent='O calendário é uma recomendação: usa treinos registrados, recuperação estimada e volume dos últimos 7 dias. Pode manter até 5 dias seguidos quando a recuperação permitir e se recalcula ao finalizar um treino.';c.appendChild(note);
     return c;
   }
   function inject(){
