@@ -35,17 +35,17 @@
   if(typeof finish==='function'){
     const baseFinish=finish;
     finish=function(){
-      const before=(db.logs||[]).length,captured={};
+      const before=(db.logs||[]).length,captured={},finishedDay=day;
       Object.entries(db.draft?.[day]||{}).forEach(([i,rows])=>{captured[i]=(rows||[]).filter(s=>s?.ok).map(s=>s.rir===undefined||s.rir===null||s.rir===''?null:Number(s.rir))});
       baseFinish.apply(this,arguments);
       if((db.logs||[]).length<=before)return;
-      const log=db.logs.at(-1);if(!log||log.day!==day)return;
+      const log=db.logs.at(-1);if(!log||log.day!==finishedDay)return;
       Object.entries(captured).forEach(([i,vals])=>{
         const idx=Number(i),id=log.exerciseOrder?.[idx];
         if(id&&Array.isArray(log.exById?.[id]))log.exById[id].forEach((s,k)=>{if(vals[k]!==null&&vals[k]!==undefined)s.rir=vals[k]});
         if(Array.isArray(log.ex?.[idx]))log.ex[idx].forEach((s,k)=>{if(vals[k]!==null&&vals[k]!==undefined)s.rir=vals[k]});
       });
-      save();
+      save();if(typeof render==='function')render();
     };
   }
 
