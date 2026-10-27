@@ -62,6 +62,7 @@
   }
   function accumulateExercise(out,name,setCount){muscles(name).forEach(([m,w])=>add(out,m,setCount*w));}
   function stressFromLog(log){const out={};logObjects(log).forEach(x=>accumulateExercise(out,x.name,x.sets.length));return out}
+  function planDayStress(d){const out={};planDayObjects(d).forEach(x=>accumulateExercise(out,x.name,Number(x.sets)||1));return out}
   function weeklyStress(){
     const out={},cut=Date.now()-7*DAY;
     (db.logs||[]).filter(l=>(l.t||0)>=cut).forEach(l=>{const s=stressFromLog(l);Object.entries(s).forEach(([m,v])=>add(out,m,v))});
@@ -97,7 +98,7 @@
   }
   function statusPill(st){const b=document.createElement('span');b.className='muscle-stress-badge '+st.cls;b.textContent=st.label;return b}
 
-  function trainingRow(name,today,weekly){
+  function trainingRow(name,today,weekly,plannedMode){
     const selected=stressView==='week'?weekly:today;
     const st=stressView==='week'?weekStatus(selected):sessionStatus(selected);
     const rec=recovery(today),r=document.createElement('div');r.className='muscle-stress-row '+st.cls;
@@ -105,7 +106,7 @@
     const n=document.createElement('b');n.textContent=name;top.append(n,statusPill(st));
     const bar=fillBar(selected,stressView==='week'?24:12,st.cls);
     const metrics=document.createElement('div');metrics.className='muscle-stress-metrics';
-    metrics.appendChild(metricLine('Hoje',fmt(today)+' séries efetivas'));
+    metrics.appendChild(metricLine(plannedMode?'Treino planejado':'Hoje',fmt(today)+' séries efetivas'));
     metrics.appendChild(metricLine('Últimos 7 dias',fmt(weekly||0)+' séries efetivas'));
     metrics.appendChild(metricLine('Recuperação estimada',rec[0]+'–'+rec[1]+' h'));
     r.append(top,bar,metrics);return r;
@@ -146,19 +147,19 @@
       b.onclick=()=>{if(stressView===key)return;stressView=key;try{localStorage.setItem(VIEW_KEY,key)}catch(e){}rerender()};sw.appendChild(b);
     });
     card.appendChild(sw);
-    const cap=document.createElement('div');cap.className='muscle-stress-view-label';cap.textContent=stressView==='week'?'Barra e classificação: carga acumulada nos últimos 7 dias':'Barra e classificação: stress do treino de hoje';card.appendChild(cap);
+    const cap=document.createElement('div');cap.className='muscle-stress-view-label';cap.textContent=stressView==='week'?'Barra e classificação: carga realizada nos últimos 7 dias':'Barra e classificação: stress do treino de hoje';card.appendChild(cap);
   }
 
   function trainingCard(){
     const done=currentStress(false),planned=currentStress(true),hasDone=Object.values(done).some(v=>v>0),today=hasDone?done:planned;
-    const week=withCurrent(weeklyStress(),today);
+    const completedWeek=weeklyStress(),week=hasDone?withCurrent(completedWeek,done):completedWeek;
     const names=[...new Set([...Object.keys(today),...Object.keys(week)])].filter(m=>(today[m]||0)>0).sort((a,b)=>(stressView==='week'?(week[b]||0)-(week[a]||0):(today[b]||0)-(today[a]||0)));
     if(!names.length)return null;
     const c=document.createElement('div');c.className='ex muscle-stress-card';
     const h=document.createElement('div');h.className='muscle-stress-head';h.innerHTML='<div><h3>Stress muscular</h3><span>'+(hasDone?'Séries concluídas nesta sessão':'Previsão do treino planejado')+'</span></div><span class="estimate-pill">estimativa</span>';c.appendChild(h);
     switcher(c,()=>render());
-    names.forEach(m=>c.appendChild(trainingRow(m,today[m]||0,week[m]||0)));
-    const note=document.createElement('p');note.className='muscle-stress-note';note.textContent='Hoje e 7 dias usam escalas diferentes. Série principal = 1,0; participação secundária = 0,5. “Muito alto” é um alerta de volume, não prova de excesso ou lesão.';c.appendChild(note);
+    names.forEach(m=>c.appendChild(trainingRow(m,today[m]||0,week[m]||0,!hasDone)));
+    const note=document.createElement('p');note.className='muscle-stress-note';note.textContent=(hasDone?'O total de 7 dias inclui as séries já concluídas hoje. ':'O total de 7 dias mostra apenas treinos realizados; o treino planejado ainda não foi somado. ')+'Hoje e 7 dias usam escalas diferentes. Série principal = 1,0; participação secundária = 0,5.';c.appendChild(note);
     return c;
   }
 
@@ -169,6 +170,8 @@
     entries.forEach(([m,x])=>c.appendChild(recoveryRow(m,x.v,week[m]||0,x)));
     const note=document.createElement('p');note.className='muscle-stress-note';note.textContent='A recuperação é estimada a partir da última sessão. O status semanal serve para mostrar o volume acumulado e usa uma escala diferente da sessão.';c.appendChild(note);return c;
   }
+
+  window.muscleStressApi={muscles,stressFromLog,planDayStress,weeklyStress,lastMuscleSessions,recovery,sessionStatus,weekStatus};
 
   function injectTraining(){const box=$('list'),card=trainingCard();if(!box||!card)return;box.insertBefore(card,box.firstChild)}
   if(typeof renderList==='function'){const base=renderList;renderList=function(){base.apply(this,arguments);injectTraining();};}
