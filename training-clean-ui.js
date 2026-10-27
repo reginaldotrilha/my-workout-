@@ -25,7 +25,7 @@
   function compactHeader(){
     const sub=document.getElementById('sub');if(!sub)return;
     const m=dayMeta(),rec=recommendation();
-    sub.textContent='Treino '+day+' · '+m.name+(rec?' · Hoje: '+rec:'');
+    sub.textContent='Selecionado: '+day+' · '+m.name+(rec?' · Hoje: '+rec:'');
   }
   function compactPlan(){
     const bar=document.getElementById('planSummary');if(!bar)return;
@@ -48,11 +48,19 @@
     b.classList.add('clean-catalog-banner');
     const small=b.querySelector('small');if(small)small.textContent=small.textContent.replace(' opções por grupo muscular',' exercícios');
   }
+  function stressPeriod(card){
+    const selected=card.querySelector('.muscle-stress-switch button[aria-pressed="true"]')?.textContent?.trim().toLowerCase()||'';
+    if(selected.includes('7'))return'7 dias';
+    const subtitle=card.querySelector('.muscle-stress-head > div > span')?.textContent?.trim().toLowerCase()||'';
+    if(subtitle.includes('previs'))return'Treino planejado';
+    return'Hoje';
+  }
   function stressSummary(card){
     const first=card.querySelector('.muscle-stress-row');if(!first)return'';
     const muscle=first.querySelector('.muscle-stress-top > b')?.textContent||'';
     const badge=first.querySelector('.muscle-stress-badge')?.textContent||'';
-    return muscle&&badge?'Maior carga: '+muscle+' · '+badge:'Toque para ver stress por músculo';
+    const period=stressPeriod(card);
+    return muscle&&badge?period+': '+muscle+' · '+badge:'Toque para ver stress por músculo';
   }
   function compactStress(){
     const card=document.querySelector('#vTreino .muscle-stress-card');if(!card)return;
@@ -77,8 +85,16 @@
       ch.classList.toggle('clean-stress-hidden',!stressOpen);
     });
   }
+  function compactExerciseSection(){
+    const toolbar=document.querySelector('#list > .exercise-collapse-toolbar');if(!toolbar)return;
+    toolbar.classList.add('clean-exercise-toolbar');
+    let title=toolbar.querySelector('.exercise-section-title');
+    if(!title){title=document.createElement('div');title.className='exercise-section-title';toolbar.prepend(title)}
+    const m=dayMeta();
+    title.innerHTML='<b>Exercícios do treino '+day+'</b><span>'+m.name+'</span>';
+  }
   function cleanup(){
-    renameNav();compactPlan();compactPlanner();compactCatalog();compactStress();compactHeader();
+    renameNav();compactPlan();compactPlanner();compactCatalog();compactStress();compactExerciseSection();compactHeader();
   }
 
   if(typeof renderTabs==='function'){
@@ -97,6 +113,7 @@
     .tabs.named-workout-tabs{gap:7px;margin-bottom:9px}.tabs.named-workout-tabs button{flex-basis:158px!important;min-height:58px!important;padding:7px 8px!important;grid-template-columns:32px minmax(0,1fr)!important}.workout-letter{width:30px!important;height:30px!important;font-size:20px!important}.workout-tab-copy strong{font-size:13px!important}.workout-tab-copy small{font-size:9px!important;margin-top:2px!important}
     .clean-catalog-banner{padding:8px 10px!important;margin-bottom:10px!important;border-color:var(--line)!important}.clean-catalog-banner b{font-size:16px!important}.clean-catalog-banner small{font-size:10px!important}.clean-catalog-banner strong{font-size:12px!important}
     .clean-stress-card{padding:10px 12px!important;margin-bottom:10px!important}.clean-stress-card .muscle-stress-head{margin-bottom:3px}.clean-stress-card .muscle-stress-head h3{font-size:19px}.clean-stress-card .muscle-stress-head>div>span{font-size:10px}.clean-stress-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px}.clean-stress-summary-text{color:var(--mute);font-size:11px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.clean-stress-toggle{flex:0 0 auto;padding:5px 8px!important;font-size:11px!important}.clean-stress-hidden{display:none!important}
-    @media(max-width:390px){#sub{font-size:13px}.clean-weekly-planner .planner-day{flex-basis:68px}.tabs.named-workout-tabs button{flex-basis:150px!important}}
+    .exercise-collapse-toolbar.clean-exercise-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 9px;padding:2px 1px}.exercise-section-title{display:grid;gap:1px;min-width:0}.exercise-section-title b{font:700 18px "Barlow Condensed",Barlow,sans-serif;color:var(--ink)}.exercise-section-title span{font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.clean-exercise-toolbar .collapse-all-btn{flex:0 0 auto;font-size:11px;padding:5px 8px}
+    @media(max-width:390px){#sub{font-size:13px}.clean-weekly-planner .planner-day{flex-basis:68px}.tabs.named-workout-tabs button{flex-basis:150px!important}.exercise-section-title b{font-size:17px}}
   `;document.head.appendChild(st);
 })();
