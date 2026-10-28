@@ -14,13 +14,15 @@
       const rows=[...card.querySelectorAll('.set')];
       const draft=db.draft?.[day]?.[i]||[];
       rows.forEach((row,k)=>{
-        if(row.querySelector('.rir-select'))return;
+        const existing=row.querySelector('.rir-select');
+        if(existing){row.classList.add('has-rir');return;}
         const s=draft[k];if(!s)return;
         const sel=document.createElement('select');sel.className='rir-select';sel.setAttribute('aria-label','RIR série '+(k+1));
         RIR_OPTIONS.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;sel.appendChild(o)});
         sel.value=s.rir===undefined||s.rir===null?'':String(Math.min(4,Number(s.rir)));
         sel.onchange=()=>{s.rir=sel.value===''?'':Number(sel.value);save()};
         const check=row.querySelector('.chk');if(check)row.insertBefore(sel,check);else row.appendChild(sel);
+        row.classList.add('has-rir');
       });
       if(!card.querySelector('.rir-hint')){
         const h=document.createElement('div');h.className='rir-hint';h.textContent='RIR: repetições que ainda sobrariam. 0–1 = muito perto da falha · 2–3 = esforço produtivo · 4+ = mais leve.';
@@ -51,6 +53,14 @@
 
   window.rirEffortApi={factor,effectiveSets};
   const st=document.createElement('style');st.textContent=`
-    .set .rir-select{width:62px;min-width:62px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:600 12px Barlow,system-ui,sans-serif;padding:0 6px}.rir-hint{color:var(--mute);font-size:10px;line-height:1.35;margin:5px 0 7px;padding:6px 8px;background:var(--bg);border-radius:8px}@media(max-width:390px){.set .rir-select{width:56px;min-width:56px;padding:0 4px}}
+    .set.has-rir{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 62px 44px;gap:8px}
+    .set.has-rir .rir-select{width:100%;min-width:0;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:600 12px Barlow,system-ui,sans-serif;padding:0 6px}
+    .rir-hint{color:var(--mute);font-size:10px;line-height:1.35;margin:5px 0 7px;padding:6px 8px;background:var(--bg);border-radius:8px}
+    @media(max-width:390px){
+      .set.has-rir{grid-template-columns:20px minmax(0,1fr) minmax(0,1fr) 52px 42px;gap:5px}
+      .set.has-rir .rir-select{height:44px;font-size:11px;padding:0 2px}
+      .set.has-rir .chk{width:42px;height:44px}
+      .set.has-rir input[type=number]{font-size:17px;padding:9px 6px}
+    }
   `;document.head.appendChild(st);
 })();
