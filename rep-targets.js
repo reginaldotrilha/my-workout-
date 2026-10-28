@@ -1,5 +1,6 @@
 // Recommended repetition ranges + user-adjustable target selector.
 // The recommendation remains visible even when the user chooses a different target.
+// User choices are persisted on the exercise itself (repRange) and in local preferences.
 (function(){
   const PREF_KEY='treino_rep_targets_v1';
   const FLEX_KEY='treino_workout_flex_v1';
@@ -36,19 +37,35 @@
   }
   function ideal(item){return RECOMMENDATIONS.get(norm(item?.name))||fallback(item)}
   function prefKey(item){return item?.id||norm(item?.name)}
-  function selected(item){return prefs[prefKey(item)]||ideal(item)}
-  function setsOf(item){return Math.max(1,Number(item?.sets)||3)}
-  function targetFor(item,range){return setsOf(item)+'×'+range}
   function sameExercise(x,item){return !!x&&(x.id===item.id||norm(x.name)===norm(item.name))}
+  function setsOf(item){return Math.max(1,Number(item?.sets)||3)}
+  function targetForSets(sets,range){return Math.max(1,Number(sets)||3)+'×'+range}
+  function targetFor(item,range){return targetForSets(setsOf(item),range)}
 
+  function storedPlanRange(item){
+    for(const q of Object.values(db.training?.current?.days||{})){
+      const x=(q.ex||[]).find(e=>sameExercise(e,item));
+      if(x?.repRange)return x.repRange;
+    }
+    return null;
+  }
+  function selected(item){return prefs[prefKey(item)]||storedPlanRange(item)||item?.repRange||ideal(item)}
   function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch(e){}}
 
   function updateFlex(item,range){
     let flex;try{flex=JSON.parse(localStorage.getItem(FLEX_KEY)||'{}')||{}}catch(e){return false}
     let changed=false;
     Object.values(flex.sessions||{}).forEach(s=>{
-      (s.extras||[]).forEach(x=>{if(sameExercise(x,item)){const t=(Number(x.sets)||setsOf(item))+'×'+range;if(x.target!==t){x.target=t;changed=true}}});
-      Object.values(s.subs||{}).forEach(x=>{if(sameExercise(x,item)){const t=(Number(x.sets)||setsOf(item))+'×'+range;if(x.target!==t){x.target=t;changed=true}}});
+      (s.extras||[]).forEach(x=>{
+        if(!sameExercise(x,item))return;
+        const t=targetForSets(x.sets||setsOf(item),range);
+        if(x.target!==t||x.repRange!==range){x.target=t;x.repRange=range;changed=true}
+      });
+      Object.values(s.subs||{}).forEach(x=>{
+        if(!sameExercise(x,item))return;
+        const t=targetForSets(x.sets||setsOf(item),range);
+        if(x.target!==t||x.repRange!==range){x.target=t;x.repRange=range;changed=true}
+      });
     });
     if(changed)try{localStorage.setItem(FLEX_KEY,JSON.stringify(flex))}catch(e){}
     return changed;
@@ -58,6 +75,7 @@
     if(!item)return false;
     let changed=false;
     item.idealReps=ideal(item);
+    item.repRange=range;
     const catalogTarget=targetFor(item,range);
     if(item.target!==catalogTarget){item.target=catalogTarget;changed=true}
 
@@ -65,12 +83,12 @@
     for(const [d,q] of Object.entries(p?.days||{})){
       (q.ex||[]).forEach(x=>{
         if(!sameExercise(x,item))return;
-        const t=(Number(x.sets)||setsOf(item))+'×'+range;
-        if(x.target!==t){x.target=t;changed=true}
+        const t=targetForSets(x.sets||setsOf(item),range);
+        if(x.target!==t||x.repRange!==range){x.target=t;x.repRange=range;changed=true}
       });
       (PLAN[d]?.ex||[]).forEach(e=>{
         if(e?.[3]===item.id||norm(e?.[0])===norm(item.name)){
-          const t=(Number(e?.[2])||setsOf(item))+'×'+range;
+          const t=targetForSets(e?.[2]||setsOf(item),range);
           if(e[1]!==t){e[1]=t;changed=true}
         }
       });
@@ -108,15 +126,19 @@
       }
       panel.innerHTML='';
       const badge=document.createElement('span');badge.className='rep-ideal-badge';badge.textContent='Ideal: '+recommended+(isTimeRange(recommended)?'':' reps');
-      const label=document.createElement('label');label.className='rep-target-label';const cap=document.createElement('span');cap.textContent='Meta';
-      const select=document.createElement('select');select.className='rep-target-select';select.setAttribute('aria-label','Meta de repetições para '+item.name);
+      const label=document.createElement('label');label.className='rep-target-label';const cap=document.createElement('span');cap.textContent='Meta fixa';
+      const select=document.createElement('select');select.className='rep-target-select';select.setAttribute('aria-label','Meta fixa de repetições para '+item.name);
       optionList(recommended,current).forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r+(r===recommended?' · ideal':'');select.appendChild(o)});
       select.value=current;label.append(cap,select);panel.append(badge,label);
       panel.classList.toggle('custom',current!==recommended);
       select.onchange=()=>{
         const value=select.value;
-        if(value===recommended)delete prefs[prefKey(item)];else prefs[prefKey(item)]=value;
-        savePrefs();applyOne(item,value);if(typeof save==='function')save();if(typeof render==='function')render();
+        prefs[prefKey(item)]=value;
+        savePrefs();
+        applyOne(item,value);
+        if(typeof save==='function')save();
+        if(typeof toast==='function')toast('Meta de '+item.name+' fixada em '+value);
+        if(typeof render==='function')render();
       };
     });
   }
