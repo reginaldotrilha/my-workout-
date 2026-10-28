@@ -1,13 +1,10 @@
-// Hybrid per-set inputs: type any value or choose from a quick selector.
-// Repetition options are color coded against the exercise's fixed ideal range.
+// Native iOS-friendly selectors for each set.
+// Users can type freely in the input or choose a value from the adjacent native <select>.
 (function(){
-  const norm=s=>String(s||'').trim().toLocaleLowerCase('pt-BR');
-
   function fireInput(input,value){
     input.value=String(value);
     input.dispatchEvent(new Event('input',{bubbles:true}));
     input.dispatchEvent(new Event('change',{bubbles:true}));
-    input.focus({preventScroll:true});
   }
 
   function exerciseForCard(card){
@@ -23,9 +20,8 @@
 
   function repValues(range,current){
     const max=Math.max(25,range?.max||0,Number(current)||0);
-    const min=Math.min(1,range?.min||1);
     const out=[];
-    for(let n=min;n<=Math.min(40,max+5);n++)out.push(n);
+    for(let n=1;n<=Math.min(40,max+5);n++)out.push(n);
     return out;
   }
 
@@ -39,72 +35,6 @@
     return [...vals].sort((a,b)=>a-b);
   }
 
-  function closeAll(except){
-    document.querySelectorAll('.series-picker-menu.open').forEach(m=>{if(m!==except)m.classList.remove('open')});
-  }
-
-  function positionMenu(menu,wrap){
-    const r=wrap.getBoundingClientRect(),pad=8;
-    const width=Math.min(300,window.innerWidth-pad*2);
-    menu.style.width=width+'px';
-    menu.style.left=Math.max(pad,Math.min(window.innerWidth-width-pad,r.left))+'px';
-    const estimated=Math.min(300,menu.scrollHeight||260);
-    const below=window.innerHeight-r.bottom-pad;
-    if(below>=Math.min(220,estimated)){
-      menu.style.top=(r.bottom+6)+'px';menu.style.bottom='auto';
-    }else{
-      menu.style.top='auto';menu.style.bottom=(window.innerHeight-r.top+6)+'px';
-    }
-  }
-
-  function makeMenu(type,input,wrap,card){
-    const menu=document.createElement('div');
-    menu.className='series-picker-menu '+type+'-picker-menu';
-    menu.setAttribute('role','listbox');
-    document.body.appendChild(menu);
-
-    const title=document.createElement('div');title.className='series-picker-title';
-    const range=type==='reps'?idealRange(card):null;
-    title.textContent=type==='reps'?(range?'Escolha reps · ideal '+range.min+'–'+range.max:'Escolha reps'):'Escolha o peso (kg)';
-    menu.appendChild(title);
-
-    const grid=document.createElement('div');grid.className='series-picker-grid';menu.appendChild(grid);
-    const values=type==='reps'?repValues(range,input.value):weightValues(input.value);
-    values.forEach(value=>{
-      const b=document.createElement('button');b.type='button';b.className='series-picker-option';b.textContent=String(value);
-      if(type==='reps'&&range){
-        if(value>=range.min&&value<=range.max){b.classList.add('ideal');b.title='Dentro da faixa ideal'}
-        else if(value<range.min)b.classList.add('below');
-        else b.classList.add('above');
-      }
-      if(String(value)===String(input.value))b.classList.add('current');
-      b.onclick=e=>{e.preventDefault();fireInput(input,value);menu.classList.remove('open');decorate()};
-      grid.appendChild(b);
-    });
-
-    const custom=document.createElement('div');custom.className='series-picker-custom';
-    custom.textContent=type==='reps'?'Ou feche e digite qualquer número no campo.':'Ou feche e digite qualquer peso no campo.';
-    menu.appendChild(custom);
-    return menu;
-  }
-
-  function enhanceInput(input,type,row,card){
-    if(input.dataset.pickerEnhanced==='1')return;
-    input.dataset.pickerEnhanced='1';
-    const wrap=document.createElement('div');wrap.className='series-value-picker '+type+'-value-picker';
-    input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
-    const btn=document.createElement('button');btn.type='button';btn.className='series-picker-trigger';btn.setAttribute('aria-label',type==='reps'?'Escolher repetições':'Escolher peso');btn.textContent='⌄';wrap.appendChild(btn);
-    let menu=null;
-    btn.onclick=e=>{
-      e.preventDefault();e.stopPropagation();
-      if(menu){menu.remove();menu=null}
-      menu=makeMenu(type,input,wrap,card);
-      closeAll(menu);menu.classList.add('open');requestAnimationFrame(()=>positionMenu(menu,wrap));
-    };
-    input.addEventListener('focus',()=>{wrap.classList.add('editing')});
-    input.addEventListener('blur',()=>{wrap.classList.remove('editing')});
-  }
-
   function colorRepInput(input,card){
     const range=idealRange(card),v=Number(input.value);
     input.classList.remove('rep-in-ideal','rep-below-ideal','rep-above-ideal');
@@ -114,54 +44,90 @@
     else input.classList.add('rep-above-ideal');
   }
 
+  function buildSelect(type,input,card){
+    const select=document.createElement('select');
+    select.className='series-native-select '+type+'-native-select';
+    select.setAttribute('aria-label',type==='reps'?'Escolher repetições':'Escolher peso');
+
+    const placeholder=document.createElement('option');
+    placeholder.value='';placeholder.textContent='▼';placeholder.selected=true;
+    select.appendChild(placeholder);
+
+    if(type==='reps'){
+      const range=idealRange(card);
+      repValues(range,input.value).forEach(v=>{
+        const o=document.createElement('option');o.value=String(v);
+        if(range&&v>=range.min&&v<=range.max)o.textContent='🟢 '+v+' reps';
+        else if(range)o.textContent='🟠 '+v+' reps';
+        else o.textContent=v+' reps';
+        select.appendChild(o);
+      });
+    }else{
+      weightValues(input.value).forEach(v=>{
+        const o=document.createElement('option');o.value=String(v);o.textContent=v+' kg';select.appendChild(o);
+      });
+    }
+
+    select.onchange=()=>{
+      if(select.value==='')return;
+      fireInput(input,select.value);
+      if(type==='reps')colorRepInput(input,card);
+      select.value='';
+    };
+    return select;
+  }
+
+  function enhanceInput(input,type,card){
+    if(input.dataset.nativePickerEnhanced==='1')return;
+    input.dataset.nativePickerEnhanced='1';
+
+    const wrap=document.createElement('div');
+    wrap.className='series-value-picker '+type+'-value-picker';
+    input.parentNode.insertBefore(wrap,input);
+    wrap.appendChild(input);
+    wrap.appendChild(buildSelect(type,input,card));
+
+    if(type==='reps'){
+      colorRepInput(input,card);
+      input.addEventListener('input',()=>colorRepInput(input,card));
+    }
+  }
+
   function decorate(){
-    const box=document.getElementById('list');if(!box||box.querySelector('.plan-editor,.plan-manager'))return;
+    const box=document.getElementById('list');
+    if(!box||box.querySelector('.plan-editor,.plan-manager'))return;
+
     [...box.querySelectorAll(':scope > .ex')].forEach(card=>{
       [...card.querySelectorAll('.set')].forEach(row=>{
-        const inputs=[...row.querySelectorAll('input')];
-        inputs.forEach(input=>{
+        [...row.querySelectorAll('input')].forEach(input=>{
           const aria=input.getAttribute('aria-label')||'';
-          if(/^Carga série/i.test(aria)||input.placeholder==='kg')enhanceInput(input,'weight',row,card);
-          else if(/^Repetições série/i.test(aria)||input.placeholder==='reps'){
-            enhanceInput(input,'reps',row,card);colorRepInput(input,card);
-            if(input.dataset.repColorBound!=='1'){
-              input.dataset.repColorBound='1';input.addEventListener('input',()=>colorRepInput(input,card));
-            }
-          }
+          if(/^Carga série/i.test(aria)||input.placeholder==='kg')enhanceInput(input,'weight',card);
+          else if(/^Repetições série/i.test(aria)||input.placeholder==='reps')enhanceInput(input,'reps',card);
         });
       });
     });
   }
 
-  document.addEventListener('pointerdown',e=>{
-    if(!e.target.closest('.series-picker-menu,.series-picker-trigger'))closeAll();
-  });
-  window.addEventListener('resize',()=>closeAll());
-  window.addEventListener('scroll',()=>closeAll(),{passive:true});
-
   const base=window.renderList;
-  if(typeof base==='function')window.renderList=function(){const r=base.apply(this,arguments);requestAnimationFrame(decorate);return r};
+  if(typeof base==='function')window.renderList=function(){
+    const r=base.apply(this,arguments);
+    requestAnimationFrame(decorate);
+    return r;
+  };
   requestAnimationFrame(decorate);
 
   const style=document.createElement('style');
   style.textContent=`
-    .series-value-picker{position:relative;min-width:0;display:flex;align-items:stretch}
-    .series-value-picker>input{width:100%;min-width:0;padding-right:30px!important}
-    .series-picker-trigger{position:absolute;right:2px;top:2px;bottom:2px;width:28px;border:0;border-left:1px solid var(--line);border-radius:0 7px 7px 0;background:transparent;color:var(--acc);font:700 18px/1 system-ui;padding:0;display:flex;align-items:center;justify-content:center}
-    .series-value-picker.editing{outline:2px solid color-mix(in srgb,var(--acc) 18%,transparent);border-radius:9px}
-    input.rep-in-ideal{border-color:var(--acc)!important;background:color-mix(in srgb,var(--ok) 58%,var(--bg))!important}
+    .series-value-picker{display:grid;grid-template-columns:minmax(0,1fr) 42px;align-items:stretch;min-width:0}
+    .series-value-picker>input{width:100%;min-width:0;border-radius:8px 0 0 8px!important}
+    .series-native-select{width:42px;min-width:42px;height:100%;margin:0;border:1.5px solid var(--line);border-left:0;border-radius:0 8px 8px 0;background:var(--card);color:var(--acc);font:700 13px Barlow,system-ui,sans-serif;padding:0 2px;-webkit-appearance:menulist;appearance:auto}
+    input.rep-in-ideal{border-color:var(--acc)!important;background:var(--ok)!important}
     input.rep-below-ideal,input.rep-above-ideal{border-color:var(--hot)!important;background:color-mix(in srgb,var(--hot) 7%,var(--bg))!important}
-    .series-picker-menu{display:none;position:fixed;z-index:9999;max-height:310px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:0 12px 36px rgba(0,0,0,.18);-webkit-overflow-scrolling:touch}
-    .series-picker-menu.open{display:block}
-    .series-picker-title{font-size:12px;font-weight:700;color:var(--ink);margin:0 0 8px}
-    .series-picker-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-    .series-picker-option{min-height:38px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:700 13px Barlow,system-ui,sans-serif}
-    .series-picker-option.ideal{border-color:var(--acc);background:var(--ok);color:var(--acc)}
-    .series-picker-option.below,.series-picker-option.above{border-color:var(--hot);background:color-mix(in srgb,var(--hot) 7%,var(--bg));color:var(--hot)}
-    .series-picker-option.current{box-shadow:inset 0 0 0 2px var(--hot)}
-    .series-picker-custom{margin-top:8px;font-size:10px;line-height:1.3;color:var(--mute)}
     .set.has-rir .series-value-picker{min-width:0}
-    @media(max-width:390px){.series-picker-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.series-picker-menu{max-height:280px}.series-picker-trigger{width:25px}.series-value-picker>input{padding-right:27px!important}}
+    @media(max-width:390px){
+      .series-value-picker{grid-template-columns:minmax(0,1fr) 36px}
+      .series-native-select{width:36px;min-width:36px;font-size:12px}
+    }
   `;
   document.head.appendChild(style);
 })();
