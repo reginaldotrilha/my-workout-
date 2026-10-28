@@ -7,10 +7,11 @@
   const slug=s=>String(s||'exercise').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,50)||'exercise';
   const clone=x=>JSON.parse(JSON.stringify(x));
 
+  function catalogItem(name){return window.ExerciseCatalog?.byName?.(name)||null}
   function allIdsFor(name,currentId){
     const ids=new Set();
     if(currentId)ids.add(currentId);
-    const item=window.ExerciseCatalog?.byName?.(name);
+    const item=catalogItem(name);
     if(item?.id)ids.add(item.id);
     if(name){ids.add('extra_'+slug(name));ids.add('alt_'+slug(name));}
     return ids;
@@ -31,16 +32,25 @@
     return out.sort((a,b)=>a.t-b.t);
   }
 
+  function isWeightedCatalogExercise(name){
+    const item=catalogItem(name);
+    if(!item)return true;
+    if(item.type==='reps'||item.type==='time')return false;
+    return !/bodyweight/i.test(String(item.equipment||''));
+  }
+
+  function cleanRows(name,rows){
+    const ordered=(rows||[]).slice().sort((a,b)=>a.t-b.t);
+    if(!isWeightedCatalogExercise(name))return ordered;
+    const valid=ordered.filter(row=>(row.sets||[]).some(s=>Number(s?.w)>0));
+    // Preserve zero-weight legacy rows when they are all we have; otherwise keep them out of
+    // Last/Record/autofill calculations without deleting the underlying saved log.
+    return valid.length?valid:ordered;
+  }
+
   function usefulLast(name,currentId){
-    const rows=rowsForName(name,currentId);if(!rows.length)return null;
-    const item=window.ExerciseCatalog?.byName?.(name);
-    const equipment=String(item?.equipment||'').toLowerCase();
-    const allowZero=/bodyweight/.test(equipment)||item?.type==='reps'||item?.type==='time';
-    if(allowZero)return rows.at(-1);
-    for(let i=rows.length-1;i>=0;i--){
-      if((rows[i].sets||[]).some(s=>Number(s?.w)>0))return rows[i];
-    }
-    return rows.at(-1);
+    const rows=cleanRows(name,rowsForName(name,currentId));
+    return rows.length?rows.at(-1):null;
   }
 
   function patchTrainingHistory(){
@@ -57,7 +67,7 @@
         const seen=new Set((prev.sets||[]).map(s=>JSON.stringify(s)));
         (x.sets||[]).forEach(s=>{const k=JSON.stringify(s);if(!seen.has(k)){prev.sets.push(clone(s));seen.add(k)}});
       });
-      return [...byTime.values()].sort((a,b)=>a.t-b.t);
+      return cleanRows(name,[...byTime.values()]);
     };
     wrapped.__catalogAliasPatched=true;
     window.trainingHistory=wrapped;
@@ -72,7 +82,7 @@
       for(const oldId of Object.keys(log.exById)){
         if(!(oldId.startsWith('extra_')||oldId.startsWith('alt_')))continue;
         const meta=log.exMeta?.[oldId],name=meta?.name||'';if(!name)continue;
-        const item=window.ExerciseCatalog.byName(name);if(!item?.id||item.id===oldId)continue;
+        const item=catalogItem(name);if(!item?.id||item.id===oldId)continue;
         if(!backedUp){
           try{if(!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,localStorage.getItem(KEY)||JSON.stringify(db))}catch(e){}
           backedUp=true;
