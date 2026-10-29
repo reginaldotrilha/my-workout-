@@ -1,52 +1,87 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
   <title id="title">Supino inclinado na máquina</title>
-  <desc id="desc">Demonstração lado a lado das posições inicial e final do supino inclinado na máquina.</desc>
-  <rect width="1200" height="675" rx="28" fill="#f5f6f1"/>
-  <rect x="38" y="42" width="542" height="585" rx="24" fill="#ffffff" stroke="#d8ddd4" stroke-width="4"/>
-  <rect x="620" y="42" width="542" height="585" rx="24" fill="#ffffff" stroke="#d8ddd4" stroke-width="4"/>
-  <text x="309" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#1f2d27">INÍCIO</text>
-  <text x="891" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#1f2d27">FIM</text>
-
-  <!-- left machine -->
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <path d="M140 555 L198 224 L226 224 L182 555" fill="none" stroke="#6f7772" stroke-width="18"/>
-    <path d="M160 555 H486" fill="none" stroke="#6f7772" stroke-width="18"/>
-    <path d="M246 495 L350 315" fill="none" stroke="#59635d" stroke-width="44"/>
-    <path d="M248 496 L355 318" fill="none" stroke="#d9ded7" stroke-width="31"/>
-    <path d="M238 505 H380" fill="none" stroke="#59635d" stroke-width="42"/>
-    <path d="M237 505 H375" fill="none" stroke="#d9ded7" stroke-width="29"/>
-    <circle cx="334" cy="286" r="27" fill="#f0c5a0" stroke="#1f2d27" stroke-width="6"/>
-    <path d="M320 316 L290 382 L265 451" fill="none" stroke="#1f2d27" stroke-width="20"/>
-    <path d="M294 356 L366 350 L407 392" fill="none" stroke="#236b53" stroke-width="18"/>
-    <path d="M295 358 L250 404 L223 450" fill="none" stroke="#236b53" stroke-width="18"/>
-    <circle cx="410" cy="394" r="12" fill="#c7512c"/>
-    <circle cx="220" cy="452" r="12" fill="#c7512c"/>
-    <path d="M271 449 L327 514 L397 550" fill="none" stroke="#1f2d27" stroke-width="20"/>
-    <path d="M370 350 L448 292" fill="none" stroke="#6f7772" stroke-width="16"/>
-    <path d="M220 450 L153 378" fill="none" stroke="#6f7772" stroke-width="16"/>
-    <path d="M448 292 L490 318" fill="none" stroke="#6f7772" stroke-width="14"/>
-    <path d="M153 378 L121 405" fill="none" stroke="#6f7772" stroke-width="14"/>
+  <desc id="desc">Duas ilustrações lado a lado mostrando a posição inicial e final do supino inclinado na máquina.</desc>
+  <rect width="1200" height="620" rx="30" fill="#f4f6f1"/>
+  <g font-family="Arial, sans-serif">
+    <text x="300" y="58" text-anchor="middle" font-size="26" font-weight="700" fill="#183b31">INÍCIO</text>
+    <text x="900" y="58" text-anchor="middle" font-size="26" font-weight="700" fill="#183b31">FINAL</text>
   </g>
 
-  <!-- right machine -->
+  <!-- panels -->
+  <rect x="32" y="78" width="536" height="500" rx="24" fill="#fff" stroke="#d8ddd5" stroke-width="4"/>
+  <rect x="632" y="78" width="536" height="500" rx="24" fill="#fff" stroke="#d8ddd5" stroke-width="4"/>
+
+  <!-- LEFT / START -->
   <g stroke-linecap="round" stroke-linejoin="round">
-    <path d="M722 555 L780 224 L808 224 L764 555" fill="none" stroke="#6f7772" stroke-width="18"/>
-    <path d="M742 555 H1068" fill="none" stroke="#6f7772" stroke-width="18"/>
-    <path d="M828 495 L932 315" fill="none" stroke="#59635d" stroke-width="44"/>
-    <path d="M830 496 L937 318" fill="none" stroke="#d9ded7" stroke-width="31"/>
-    <path d="M820 505 H962" fill="none" stroke="#59635d" stroke-width="42"/>
-    <path d="M819 505 H957" fill="none" stroke="#d9ded7" stroke-width="29"/>
-    <circle cx="916" cy="286" r="27" fill="#f0c5a0" stroke="#1f2d27" stroke-width="6"/>
-    <path d="M902 316 L872 382 L847 451" fill="none" stroke="#1f2d27" stroke-width="20"/>
-    <path d="M875 356 L970 318 L1032 292" fill="none" stroke="#236b53" stroke-width="18"/>
-    <path d="M875 358 L790 320 L726 292" fill="none" stroke="#236b53" stroke-width="18"/>
-    <circle cx="1035" cy="291" r="12" fill="#c7512c"/>
-    <circle cx="723" cy="291" r="12" fill="#c7512c"/>
-    <path d="M853 449 L909 514 L979 550" fill="none" stroke="#1f2d27" stroke-width="20"/>
-    <path d="M1035 291 L1073 315" fill="none" stroke="#6f7772" stroke-width="16"/>
-    <path d="M723 291 L688 315" fill="none" stroke="#6f7772" stroke-width="16"/>
+    <!-- machine frame + stack -->
+    <path d="M92 514 H506" stroke="#6b746f" stroke-width="16"/>
+    <path d="M110 514 L150 164 L174 164 L150 514" fill="none" stroke="#6b746f" stroke-width="16"/>
+    <rect x="88" y="188" width="58" height="190" rx="10" fill="#d9ded8" stroke="#6b746f" stroke-width="6"/>
+    <g stroke="#a8b0aa" stroke-width="4">
+      <path d="M98 218 H136"/><path d="M98 246 H136"/><path d="M98 274 H136"/><path d="M98 302 H136"/><path d="M98 330 H136"/>
+    </g>
+    <!-- seat/back -->
+    <path d="M245 474 L346 292" stroke="#4f5b55" stroke-width="46"/>
+    <path d="M247 474 L347 295" stroke="#dfe4de" stroke-width="31"/>
+    <path d="M235 485 H377" stroke="#4f5b55" stroke-width="42"/>
+    <path d="M237 485 H374" stroke="#dfe4de" stroke-width="28"/>
+    <!-- press arms / handles -->
+    <path d="M155 210 L226 270 L242 316" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M155 210 L210 198" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M224 270 L432 224" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M432 224 L478 236" fill="none" stroke="#69736d" stroke-width="14"/>
+    <circle cx="225" cy="270" r="13" fill="#68736d"/>
+    <!-- person -->
+    <circle cx="354" cy="258" r="26" fill="#efc39e" stroke="#20302a" stroke-width="6"/>
+    <path d="M340 286 L302 354 L267 438" fill="none" stroke="#20302a" stroke-width="20"/>
+    <path d="M305 348 L354 370 L398 326" fill="none" stroke="#216c52" stroke-width="18"/>
+    <path d="M305 350 L260 371 L232 324" fill="none" stroke="#216c52" stroke-width="18"/>
+    <circle cx="402" cy="322" r="10" fill="#c55331"/>
+    <circle cx="229" cy="320" r="10" fill="#c55331"/>
+    <path d="M268 439 L330 494 L409 514" fill="none" stroke="#20302a" stroke-width="20"/>
+    <!-- handle hints -->
+    <path d="M398 326 L432 300" stroke="#69736d" stroke-width="11"/>
+    <path d="M232 324 L205 296" stroke="#69736d" stroke-width="11"/>
+  </g>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="300" y="548" font-size="18" font-weight="700" fill="#183b31">Cotovelos flexionados</text>
+    <text x="300" y="570" font-size="15" fill="#6c7771">Alças próximas da linha do peito</text>
   </g>
 
-  <text x="309" y="602" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#68736d">Cotovelos flexionados, peito apoiado</text>
-  <text x="891" y="602" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#68736d">Empurre sem travar os cotovelos</text>
+  <!-- RIGHT / FINISH -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- machine frame + stack -->
+    <path d="M692 514 H1106" stroke="#6b746f" stroke-width="16"/>
+    <path d="M710 514 L750 164 L774 164 L750 514" fill="none" stroke="#6b746f" stroke-width="16"/>
+    <rect x="688" y="188" width="58" height="190" rx="10" fill="#d9ded8" stroke="#6b746f" stroke-width="6"/>
+    <g stroke="#a8b0aa" stroke-width="4">
+      <path d="M698 218 H736"/><path d="M698 246 H736"/><path d="M698 274 H736"/><path d="M698 302 H736"/><path d="M698 330 H736"/>
+    </g>
+    <!-- seat/back -->
+    <path d="M845 474 L946 292" stroke="#4f5b55" stroke-width="46"/>
+    <path d="M847 474 L947 295" stroke="#dfe4de" stroke-width="31"/>
+    <path d="M835 485 H977" stroke="#4f5b55" stroke-width="42"/>
+    <path d="M837 485 H974" stroke="#dfe4de" stroke-width="28"/>
+    <!-- press arms extended -->
+    <path d="M755 210 L826 270 L842 316" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M755 210 L810 198" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M824 270 L1050 176" fill="none" stroke="#69736d" stroke-width="14"/>
+    <path d="M1050 176 L1092 188" fill="none" stroke="#69736d" stroke-width="14"/>
+    <circle cx="825" cy="270" r="13" fill="#68736d"/>
+    <!-- person -->
+    <circle cx="954" cy="258" r="26" fill="#efc39e" stroke="#20302a" stroke-width="6"/>
+    <path d="M940 286 L902 354 L867 438" fill="none" stroke="#20302a" stroke-width="20"/>
+    <path d="M905 348 L987 292 L1054 214" fill="none" stroke="#216c52" stroke-width="18"/>
+    <path d="M905 350 L820 300 L766 222" fill="none" stroke="#216c52" stroke-width="18"/>
+    <circle cx="1057" cy="211" r="10" fill="#c55331"/>
+    <circle cx="763" cy="218" r="10" fill="#c55331"/>
+    <path d="M868 439 L930 494 L1009 514" fill="none" stroke="#20302a" stroke-width="20"/>
+    <!-- handles -->
+    <path d="M1054 214 L1080 194" stroke="#69736d" stroke-width="11"/>
+    <path d="M766 222 L742 199" stroke="#69736d" stroke-width="11"/>
+  </g>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="900" y="548" font-size="18" font-weight="700" fill="#183b31">Empurre para cima e à frente</text>
+    <text x="900" y="570" font-size="15" fill="#6c7771">Sem travar totalmente os cotovelos</text>
+  </g>
 </svg>
