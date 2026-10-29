@@ -1,4 +1,4 @@
-// Dynamic 7-day training planner. Uses completed workouts, recovery and recent muscle stress.
+// Dynamic 7-day training planner. Uses evidence-informed volume and readiness, not fixed recovery countdowns.
 (function(){
   const DAY=864e5,HOUR=36e5;
   const dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁ'];
@@ -12,7 +12,6 @@
   function keys(){return typeof trainingDayKeys==='function'?trainingDayKeys():Object.keys(plan()?.days||{})}
   function info(k){const d=plan()?.days?.[k];return {name:d?.name||('Treino '+k),muscles:d?.muscles||''}}
   function completedLogs(){return [...(db.logs||[])].sort((a,b)=>(a.t||0)-(b.t||0))}
-  function completedToday(){const k=dateKey(new Date());return completedLogs().filter(l=>dateKey(new Date(l.t))===k).at(-1)||null}
   function nextDue(){
     const ks=keys();if(!ks.length)return null;
     const logs=completedLogs();
@@ -21,7 +20,7 @@
   }
   function eventList(){
     const a=api();if(!a)return [];
-    return completedLogs().map(l=>({t:l.t,day:l.day,stress:a.stressFromLog(l),actual:true}));
+    return completedLogs().map(l=>({t:l.t,day:l.day,stress:a.stressFromLog(l),details:a.detailsFromLog?a.detailsFromLog(l):null,actual:true}));
   }
   function weeklyAt(events,ts){
     const out={},cut=ts-7*DAY;
@@ -30,19 +29,35 @@
   }
   function lastByMuscle(events,ts){
     const out={};
-    events.filter(e=>e.t<=ts).sort((a,b)=>b.t-a.t).forEach(e=>Object.entries(e.stress||{}).forEach(([m,v])=>{if(!out[m]&&v>0)out[m]={t:e.t,v,day:e.day}}));
+    events.filter(e=>e.t<=ts).sort((a,b)=>b.t-a.t).forEach(e=>{
+      Object.entries(e.stress||{}).forEach(([m,v])=>{
+        if(!out[m]&&v>0)out[m]={t:e.t,v,day:e.day,avgRir:e.details?.[m]?.avgRir??null};
+      });
+    });
     return out;
   }
   function evaluate(k,ts,events){
-    const a=api(),stress=a.planDayStress(k),week=weeklyAt(events,ts),last=lastByMuscle(events,ts);
+    const a=api(),stress=a.planDayStress(k),week=weeklyAt(events,ts),last=lastByMuscle(events,ts),tg=a.targets?a.targets():{weekly:{}};
     let blocked=false,score=0;const reasons=[];
     for(const [m,v] of Object.entries(stress)){
       if(v<=0)continue;
-      const p=(week[m]||0)+v;
-      if(p>20)score+=(p-20)*3;else if(p>14)score+=(p-14)*1.2;
-      if(p>26&&v>=2){blocked=true;reasons.push(m+' com volume semanal muito alto')}
+      const target=tg.weekly?.[m]||10,projected=(week[m]||0)+v,ratio=projected/Math.max(1,target);
+      if(ratio>1.5)score+=(ratio-1.5)*18*v;else if(ratio>1.2)score+=(ratio-1.2)*8*v;
+      if(ratio>1.5)reasons.push(m+' ficaria acima do volume planejado');
+
       const l=last[m];
-      if(l){const max=a.recovery(l.v)[1],elapsed=(ts-l.t)/HOUR,remaining=max-elapsed;if(remaining>0){score+=remaining*(v>=2?1:.25);if(v>=2){blocked=true;reasons.push(m+' ainda em recuperação')}}}
+      if(l){
+        const elapsed=Math.max(0,(ts-l.t)/HOUR);
+        if(elapsed<24&&v>=1){blocked=true;score+=100;reasons.push(m+' foi treinado há '+Math.round(elapsed)+' h');}
+        else if(elapsed<36)score+=(36-elapsed)*.7*v;
+        else if(elapsed<48)score+=(48-elapsed)*.2*v;
+
+        if(a.readiness){
+          const rd=a.readiness(m,l,week[m]||0,ts);
+          if(rd.label==='Baixa'&&v>=1.5){blocked=true;reasons.push(m+' com prontidão baixa');}
+          else if(rd.label==='Moderada')score+=4*v;
+        }
+      }
     }
     return {day:k,stress,blocked,score,reasons:[...new Set(reasons)],week};
   }
@@ -58,7 +73,7 @@
   }
   function pickWorkout(due,used,ts,events){
     const ks=keys();if(!ks.length)return null;
-    const start=Math.max(0,ks.indexOf(due));const order=[];
+    const start=Math.max(0,ks.indexOf(due)),order=[];
     for(let i=0;i<ks.length;i++)order.push(ks[(start+i)%ks.length]);
     const candidates=order.filter(k=>!used.has(k)).map(k=>evaluate(k,ts,events));
     const safe=candidates.filter(x=>!x.blocked).sort((a,b)=>a.score-b.score||order.indexOf(a.day)-order.indexOf(b.day));
@@ -66,15 +81,18 @@
   }
   function explainChoice(choice,due){
     if(!choice)return '';
-    if(choice.day===due)return 'Próximo treino da sequência com recuperação compatível.';
-    return 'O treino '+due+' foi adiado; '+choice.day+' está mais recuperado para hoje.';
+    if(choice.day===due){
+      const caution=choice.reasons.find(r=>r.includes('acima do volume'));
+      return caution?'Próximo treino da sequência. '+caution+'.':'Próximo treino da sequência com prontidão compatível.';
+    }
+    return 'O treino '+due+' foi adiado; '+choice.day+' apresenta melhor prontidão hoje.';
   }
   function schedule(){
     const a=api(),p=plan();if(!a||!p)return [];
     const now=new Date(),today0=startOfDay(now),events=eventList();
     let due=nextDue(),used=new Set(),out=[];
     for(let i=0;i<7;i++){
-      const d=new Date(today0.getTime()+i*DAY);const ts=new Date(d);ts.setHours(i===0?Math.max(now.getHours(),12):18,0,0,0);const stamp=ts.getTime();
+      const d=new Date(today0.getTime()+i*DAY),ts=new Date(d);ts.setHours(i===0?Math.max(now.getHours(),12):18,0,0,0);const stamp=ts.getTime();
       const actual=events.filter(e=>e.actual&&dateKey(new Date(e.t))===dateKey(d)).at(-1);
       if(actual){
         out.push({date:d,type:'done',day:actual.day,title:'Treino '+actual.day+' concluído',reason:'Treino registrado neste dia.'});
@@ -84,11 +102,11 @@
       if(forced){out.push({date:d,type:'rest',title:'Descanso',reason:forced});continue}
       const choice=pickWorkout(due,used,stamp,events);
       if(!choice){
-        const checks=keys().map(k=>evaluate(k,stamp,events));const why=[...new Set(checks.flatMap(x=>x.reasons))].slice(0,2).join(' · ');
-        out.push({date:d,type:'rest',title:'Descanso',reason:why||'Recuperação e volume favorecem um dia sem musculação.'});continue;
+        const checks=keys().map(k=>evaluate(k,stamp,events)),why=[...new Set(checks.flatMap(x=>x.reasons))].filter(r=>!r.includes('acima do volume')).slice(0,2).join(' · ');
+        out.push({date:d,type:'rest',title:'Descanso',reason:why||'Prontidão favorece um dia sem musculação.'});continue;
       }
       const meta=info(choice.day);out.push({date:d,type:'workout',day:choice.day,title:choice.day+' · '+meta.name,reason:explainChoice(choice,due),muscles:meta.muscles});
-      events.push({t:stamp,day:choice.day,stress:choice.stress,actual:false});
+      events.push({t:stamp,day:choice.day,stress:choice.stress,details:null,actual:false});
       if(choice.day===due){const ks=keys(),pos=ks.indexOf(due);due=ks[(pos+1)%ks.length];used.clear()}else used.add(choice.day);
     }
     return out;
@@ -120,15 +138,13 @@
       const btn=document.createElement('button');btn.type='button';btn.className='ghost small';btn.textContent='Abrir '+t.day;btn.onclick=()=>selectWorkout(t.day);detail.appendChild(btn);
     }
     c.appendChild(detail);
-    const note=document.createElement('div');note.className='planner-note';note.textContent='O calendário é uma recomendação: usa treinos registrados, recuperação estimada e volume dos últimos 7 dias. Pode manter até 5 dias seguidos quando a recuperação permitir e se recalcula ao finalizar um treino.';c.appendChild(note);
+    const note=document.createElement('div');note.className='planner-note';note.textContent='O calendário considera volume do plano, tempo desde o último estímulo e prontidão. Menos de 24 h para o mesmo músculo pesa fortemente; 24–48 h é cautela, não bloqueio automático.';c.appendChild(note);
     return c;
   }
   function inject(){
     document.getElementById('weeklyPlanner')?.remove();
     const host=document.getElementById('vTreino'),tabs=document.getElementById('tabs'),c=card();if(!host||!tabs||!c)return;host.insertBefore(c,tabs);
-    const t=todayRecommendation(schedule()),sub=document.getElementById('sub');if(sub&&t){
-      const current=info(day);sub.textContent='Treino '+day+' · '+current.name+(current.muscles?' · '+current.muscles:'')+' · sugerido hoje: '+(t.type==='rest'?'Descanso':(t.day||'Concluído'));
-    }
+    const t=todayRecommendation(schedule()),sub=document.getElementById('sub');if(sub&&t){const current=info(day);sub.textContent='Treino '+day+' · '+current.name+(current.muscles?' · '+current.muscles:'')+' · sugerido hoje: '+(t.type==='rest'?'Descanso':(t.day||'Concluído'));}
   }
   if(typeof renderTabs==='function'){const base=renderTabs;renderTabs=function(){base.apply(this,arguments);inject();};}
 
