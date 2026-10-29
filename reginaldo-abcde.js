@@ -6,7 +6,54 @@
     if(!db?.training?.current)return;
 
     const VERSION='reginaldo_abcde_priority_v2';
+    const REPAIR_KEY='treino_reginaldo_lateral_raise_25_to_9_20261029_v1';
+    const REPAIR_BACKUP_KEY='treino_v1_backup_before_lateral_raise_repair_20261029';
     const p=db.training.current;
+    const clone=x=>JSON.parse(JSON.stringify(x));
+
+    // One-time correction for data polluted when the priority plan changed exercise positions.
+    // Lateral raise moved inside workout D and an old positional value (25) was carried into
+    // both the draft and history. Reginaldo confirmed the correct value is 9 kg.
+    function repairLateralRaise(){
+      try{if(localStorage.getItem(REPAIR_KEY)==='1')return false}catch(e){}
+      let changed=false,backedUp=false;
+      const backup=()=>{
+        if(backedUp)return;
+        backedUp=true;
+        try{
+          if(!localStorage.getItem(REPAIR_BACKUP_KEY)){
+            const raw=localStorage.getItem(KEY);
+            if(raw)localStorage.setItem(REPAIR_BACKUP_KEY,raw);
+          }
+        }catch(e){}
+      };
+      const fixRows=rows=>{
+        if(!Array.isArray(rows))return;
+        rows.forEach(s=>{
+          if(s&&Number(s.w)===25){backup();s.w=9;changed=true;}
+        });
+      };
+
+      for(const log of db.logs||[]){
+        fixRows(log?.exById?.lateral_raise);
+        if(Array.isArray(log?.exerciseOrder)){
+          log.exerciseOrder.forEach((id,i)=>{if(id==='lateral_raise')fixRows(log?.ex?.[i]);});
+        }else{
+          const snap=log?.planSnapshot?.days?.[log.day]?.ex||[];
+          snap.forEach((x,i)=>{if(x?.id==='lateral_raise')fixRows(log?.ex?.[i]);});
+        }
+      }
+
+      for(const [d,def] of Object.entries(p.days||{})){
+        (def.ex||[]).forEach((x,i)=>{if(x?.id==='lateral_raise')fixRows(db.draft?.[d]?.[i]);});
+      }
+
+      if(changed){try{save()}catch(e){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(_){}}}
+      try{localStorage.setItem(REPAIR_KEY,'1')}catch(e){}
+      return changed;
+    }
+
+    repairLateralRaise();
     if(p.programVersion===VERSION)return;
 
     // Do not remap a session that is actually in progress. Prefilled historical weights alone do not count.
@@ -14,6 +61,7 @@
     if(activeDraft)return;
 
     const ex=(id,name,target,sets,type='weight_reps')=>({id,name,target,sets,type,catalogId:id});
+    const oldDays=clone(p.days||{}),oldDraft=clone(db.draft||{});
 
     p.name='Plano Prioridade Superior';
     p.goal='Recomposição corporal + hipertrofia prioritária de peito, braços e ombros';
@@ -61,6 +109,17 @@
         ex('machine_seated_row','Remada sentada na máquina','2×10-15',2)
       ]}
     };
+
+    // Drafts are positional in the legacy data model. Whenever exercises are reordered,
+    // rebuild each unfinished draft by stable exercise ID so values cannot leak to another exercise.
+    for(const d of Object.keys(oldDraft)){
+      const previous=oldDays?.[d]?.ex||[],next=p.days?.[d]?.ex||[],src=oldDraft[d]||{},dst={};
+      previous.forEach((oldEx,oldIndex)=>{
+        const newIndex=next.findIndex(x=>x.id===oldEx?.id);
+        if(newIndex>=0&&Array.isArray(src[oldIndex]))dst[newIndex]=clone(src[oldIndex]);
+      });
+      if(Object.keys(dst).length)db.draft[d]=dst;else if(db.draft)delete db.draft[d];
+    }
 
     for(const k of Object.keys(PLAN))delete PLAN[k];
     for(const [k,d] of Object.entries(p.days))PLAN[k]={n:d.name,ex:d.ex.map(x=>[x.name,x.target,Number(x.sets)||1,x.id])};
