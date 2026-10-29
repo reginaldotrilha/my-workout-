@@ -19,7 +19,7 @@
       target:'3×8-12',
       sets:3,
       type:'weight_reps',
-      file:'img/machine_incline_press.jpg'
+      file:'img/machine_incline_press.svg'
     }
   ];
 
