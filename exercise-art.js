@@ -7,6 +7,7 @@
   const D={
     'Supino reto com barra':[['bar',0,0,1],[...LF,100,-80,-35,75],[...LF,-90,-90,-35,75]],
     'Supino inclinado com halteres':[['db',0,0,1],[...IN,105,-75,0,90],[...IN,-80,-80,0,90]],
+    'Supino inclinado na máquina':[['',0,0,1],[...IN,105,-75,0,90],[...IN,-80,-80,0,90]],
     'Crucifixo na polia ou peck deck':[['',0,0,1],[...SE,150,20,0,90],[...SE,0,0,0,90]],
     'Tríceps testa':[['bar',0,0,1],[...LF,-90,-160,-35,75],[...LF,-90,-90,-35,75]],
     'Tríceps na polia (corda)':[['cable',230,10,0],[...U,90,-20,90,90],[...U,90,90,90,90]],
