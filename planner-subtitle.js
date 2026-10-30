@@ -1,4 +1,4 @@
-// Keep the header recommendation in sync with the automatic weekly planner.
+// Keep the header in sync with the sequence-first weekly planner.
 (function(){
   if(typeof renderList!=='function')return;
   const base=renderList;
@@ -9,9 +9,9 @@
       const code=today?.querySelector('strong')?.textContent?.trim();
       const sub=document.getElementById('sub');
       if(!sub||!code)return;
-      const recommendation=code==='DESC'?'Descanso':(code==='✓'?'Concluído':code);
-      const clean=sub.textContent.replace(/\s*·\s*sugerido hoje:.*$/,'');
-      sub.textContent=clean+' · sugerido hoje: '+recommendation;
+      const status=code==='DESC'?'Descanso':code==='✓'?'Concluído':code==='PULOU'?'Pulado':code;
+      const clean=sub.textContent.replace(/\s*·\s*(?:hoje|sugerido hoje):.*$/,'');
+      sub.textContent=clean+' · hoje: '+status;
     }catch(e){}
   };
 })();
