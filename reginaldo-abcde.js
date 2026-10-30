@@ -5,8 +5,8 @@
     if(typeof ACTIVE_PROFILE==='undefined'||ACTIVE_PROFILE!=='reginaldo')return;
     if(!db?.training?.current)return;
 
-    const VERSION='reginaldo_abcde_priority_v3';
-    const PLAN_BACKUP_KEY='treino_v1_backup_before_abcde_v3_20261030';
+    const VERSION='reginaldo_abcde_priority_v4';
+    const PLAN_BACKUP_KEY='treino_v1_backup_before_abcde_v4_20261030';
     const REPAIR_KEY='treino_reginaldo_lateral_raise_25_to_9_20261029_v1';
     const REPAIR_BACKUP_KEY='treino_v1_backup_before_lateral_raise_repair_20261029';
     const p=db.training.current;
@@ -72,10 +72,9 @@
         ex('triceps_rope_pushdown','Tríceps na polia (corda)','3×10-15',3)
       ]},
       B:{name:'Costas & Bíceps',muscles:'Costas • Bíceps • Ombro posterior',ex:[
-        ex('lat_pulldown','Barra fixa ou puxada frontal','3×8-12',3),
-        ex('machine_seated_row','Remada sentada na máquina','3×8-12',3),
-        ex('straight_arm_pulldown','Pulldown com braços retos','2×10-15',2),
-        ex('face_pull','Face pull ou crucifixo invertido','2×12-20',2),
+        ex('lat_pulldown','Barra fixa ou puxada frontal','4×8-12',4),
+        ex('machine_seated_row','Remada sentada na máquina','4×8-12',4),
+        ex('face_pull','Face pull ou crucifixo invertido','3×12-20',3),
         ex('ez_bar_curl','Rosca direta com barra EZ','3×8-12',3),
         ex('hammer_curl','Rosca martelo','2×10-15',2)
       ]},
@@ -121,8 +120,7 @@
       'Chest press na máquina':'Ajuste o banco para as pegadas ficarem na linha média do peito. Mantenha as escápulas apoiadas, empurre sem tirar os ombros do encosto e retorne com controle.',
       'Tríceps acima da cabeça na polia':'Mantenha os cotovelos apontados para a frente e estenda os braços sem abrir os cotovelos. Volte devagar até sentir o tríceps alongar.',
       'Cadeira extensora':'Ajuste o joelho ao eixo da máquina. Estenda as pernas com controle e desça sem deixar o peso bater.',
-      'Panturrilha sentada':'Desça o calcanhar para alongar e suba o máximo possível, pausando brevemente no topo.',
-      'Pulldown com braços retos':'Mantenha os braços quase estendidos e leve a barra ou corda em direção às coxas usando os dorsais, sem transformar o movimento em tríceps.'
+      'Panturrilha sentada':'Desça o calcanhar para alongar e suba o máximo possível, pausando brevemente no topo.'
     });
     save();
   }catch(e){console.warn('Reginaldo ABCDE priority migration skipped',e);}
