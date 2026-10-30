@@ -61,5 +61,8 @@
   },
   "Abdominal infra ou roda": {
     "file": "img/leg_raise.png"
+  },
+  "Remada sentada na máquina": {
+    "file": "img/machine_seated_row.jpg"
   }
 }
