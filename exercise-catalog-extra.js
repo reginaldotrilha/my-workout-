@@ -19,6 +19,15 @@
       target:'3×8-12',
       sets:3,
       type:'weight_reps'
+    },
+    {
+      id:'dumbbell_fly',
+      name:'Crucifixo com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'2×10-15',
+      sets:2,
+      type:'weight_reps'
     }
   ];
 
