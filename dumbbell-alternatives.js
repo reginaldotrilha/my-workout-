@@ -1,25 +1,45 @@
 // Quick session-only dumbbell alternatives for busy machines/cables.
 // Reuses the existing session catalog + workout-flex flow, so permanent plan/history rules stay intact.
 (function(){
+  const CHEST_DUMBBELL=[
+    'Supino reto com halteres',
+    'Supino inclinado com halteres',
+    'Supino declinado com halteres',
+    'Crucifixo com halteres',
+    'Crucifixo inclinado com halteres',
+    'Crucifixo declinado com halteres',
+    'Supino squeeze com halteres',
+    'Supino no chão com halteres',
+    'Supino unilateral com halter',
+    'Supino inclinado unilateral com halter',
+    'Supino com pegada neutra com halteres',
+    'Supino fechado com halteres',
+    'Supino alternado com halteres'
+  ];
+
   const QUICK={
-    'Supino reto com barra':['Supino reto com halteres'],
-    'Supino inclinado na máquina':['Supino inclinado com halteres'],
-    'Chest press na máquina':['Supino reto com halteres'],
-    'Crucifixo na polia ou peck deck':['Crucifixo com halteres'],
     'Shoulder press na máquina':['Desenvolvimento com halteres']
   };
+
+  [
+    'Supino reto com barra',
+    'Supino inclinado na máquina',
+    'Chest press na máquina',
+    'Crucifixo na polia ou peck deck',
+    ...CHEST_DUMBBELL
+  ].forEach(name=>{QUICK[name]=CHEST_DUMBBELL});
 
   function injectQuick(actions){
     const card=actions?.closest('.ex');
     const current=card?.querySelector('.ex-h h3')?.textContent?.trim();
-    const names=QUICK[current];
+    const names=QUICK[current]?.filter(name=>name!==current);
     if(!names?.length)return;
     setTimeout(()=>{
       const panel=document.querySelector('.exercise-catalog-panel');
       const list=panel?.querySelector('.exercise-catalog-list');
       if(!panel||!list||panel.querySelector('.quick-alt-box'))return;
       const box=document.createElement('div');box.className='quick-alt-box';
-      const title=document.createElement('div');title.className='quick-alt-title';title.innerHTML='<b>Alternativas rápidas</b><span>Mesmo foco, usando halteres</span>';box.appendChild(title);
+      const title=document.createElement('div');title.className='quick-alt-title';title.innerHTML='<b>Alternativas com halteres</b><span>Escolha qualquer variação disponível para esta sessão</span>';box.appendChild(title);
       names.forEach(name=>{
         const b=document.createElement('button');b.type='button';b.className='quick-alt-btn';b.textContent=name;
         b.onclick=()=>{
