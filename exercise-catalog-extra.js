@@ -28,6 +28,96 @@
       target:'2×10-15',
       sets:2,
       type:'weight_reps'
+    },
+    {
+      id:'decline_dumbbell_press',
+      name:'Supino declinado com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'incline_dumbbell_fly',
+      name:'Crucifixo inclinado com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×10-15',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'decline_dumbbell_fly',
+      name:'Crucifixo declinado com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×10-15',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'dumbbell_squeeze_press',
+      name:'Supino squeeze com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×10-15',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'dumbbell_floor_press',
+      name:'Supino no chão com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'single_arm_dumbbell_press',
+      name:'Supino unilateral com halter',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'single_arm_incline_dumbbell_press',
+      name:'Supino inclinado unilateral com halter',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'neutral_grip_dumbbell_press',
+      name:'Supino com pegada neutra com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'dumbbell_close_grip_press',
+      name:'Supino fechado com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
+    },
+    {
+      id:'alternating_dumbbell_press',
+      name:'Supino alternado com halteres',
+      group:'Peito',
+      equipment:'dumbbell',
+      target:'3×8-12',
+      sets:3,
+      type:'weight_reps'
     }
   ];
 
