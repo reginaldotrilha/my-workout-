@@ -1,78 +1,227 @@
-// Recomposition dashboard: weight trend + waist + strength, with an intermediate reassessment milestone.
+// Evidence-based recomposition panel. Read-only except explicit user preference edits.
+// Stable exercise IDs and all historical training, body and meal entries are preserved.
 (function(){
   const DAY=864e5;
   const fmt=v=>Number(v).toFixed(1).replace('.0','');
+  const signed=(v,unit)=> (v>0?'+':'')+fmt(v)+' '+unit;
   const sorted=a=>(a||[]).slice().sort((x,y)=>(x.t||0)-(y.t||0));
   const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
-  function weightSeries(){return sorted(db.body||[]).filter(x=>Number.isFinite(Number(x.w))).map(x=>({t:x.t,v:Number(x.w)}))}
+  const dateKey=t=>{
+    const d=new Date(t);
+    return Number.isFinite(d.getTime())?d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate():'';
+  };
+  const daysAgo=t=>Math.max(0,Math.floor((Date.now()-t)/DAY));
+  const isNumber=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+  function dailyLatest(points){
+    const days=new Map();
+    sorted(points).forEach(p=>{const key=dateKey(p.t);if(key)days.set(key,p)});
+    return [...days.values()].sort((a,b)=>a.t-b.t);
+  }
+  function weightSeries(){
+    return dailyLatest((db.body||[])
+      .filter(x=>x&&Number.isFinite(x.t)&&isNumber(x.w)&&Number(x.w)>=20&&Number(x.w)<=400)
+      .map(x=>({t:x.t,v:Number(x.w)})));
+  }
   function waistSeries(){
-    const a=[];(db.waist||[]).forEach(x=>{if(Number.isFinite(Number(x.c)))a.push({t:x.t,v:Number(x.c)})});
-    (db.measures||[]).forEach(x=>{if(Number.isFinite(Number(x.waist)))a.push({t:x.t,v:Number(x.waist)})});
-    const m=new Map();a.forEach(x=>m.set(x.t,x));return [...m.values()].sort((x,y)=>x.t-y.t);
+    const a=[];
+    (db.waist||[]).forEach(x=>{
+      if(x&&Number.isFinite(x.t)&&isNumber(x.c)&&Number(x.c)>=20&&Number(x.c)<=250)
+        a.push({t:x.t,v:Number(x.c)});
+    });
+    (db.measures||[]).forEach(x=>{
+      if(x&&Number.isFinite(x.t)&&isNumber(x.waist)&&Number(x.waist)>=20&&Number(x.waist)<=250)
+        a.push({t:x.t,v:Number(x.waist)});
+    });
+    return dailyLatest(a);
   }
-  function avgWindow(series,from,to){return mean(series.filter(x=>x.t>=from&&x.t<to).map(x=>x.v))}
-  function weightTrend(){
-    const a=weightSeries(),now=Date.now(),cur=avgWindow(a,now-7*DAY,now+1),prev=avgWindow(a,now-14*DAY,now-7*DAY);
-    if(cur!==null&&prev!==null)return {value:cur-prev,label:'média 7d'};
-    if(a.length>=2)return {value:a.at(-1).v-a[0].v,label:'desde o início'};
-    return {value:null,label:'sem dados suficientes'};
+  function windowStats(a,from,to){
+    const rows=a.filter(x=>x.t>=from&&x.t<to);
+    return {count:rows.length,avg:mean(rows.map(x=>x.v))};
   }
-  function waistTrend(){const a=waistSeries();return a.length>=2?a.at(-1).v-a[0].v:null}
-  function strengthTrend(){
-    const by={};
+  function weightInfo(){
+    const a=weightSeries(),last=a.at(-1),first=a[0],now=Date.now();
+    const current=windowStats(a,now-7*DAY,now+1);
+    const previous=windowStats(a,now-14*DAY,now-7*DAY);
+    const trend=current.count>=2&&previous.count>=2?current.avg-previous.avg:null;
+    return {a,last,first,trend,samples:current.count,
+      overall:a.length>=2?last.v-first.v:null,
+      recent:last&&daysAgo(last.t)<=14};
+  }
+  function waistInfo(){
+    const a=waistSeries(),last=a.at(-1),first=a[0];
+    return {a,last,first,
+      overall:a.length>=2?last.v-first.v:null,
+      recent:last&&daysAgo(last.t)<=21};
+  }
+  function strengthInfo(){
+    const by=new Map();
     (db.logs||[]).forEach(l=>{
-      const map=l.exById&&Object.keys(l.exById).length?l.exById:null;
-      if(map)Object.entries(map).forEach(([id,sets])=>{const vals=(sets||[]).map(s=>Number(s.w)).filter(Number.isFinite);if(!vals.length)return;(by[id]=by[id]||[]).push({t:l.t,v:Math.max(...vals)})});
-      else Object.entries(l.ex||{}).forEach(([i,sets])=>{const vals=(sets||[]).map(s=>Number(s.w)).filter(Number.isFinite);if(!vals.length)return;const id=l.day+'_'+i;(by[id]=by[id]||[]).push({t:l.t,v:Math.max(...vals)})});
+      if(!l||!Number.isFinite(l.t))return;
+      // Do not map exercises by their position when a stable ID exists.
+      const ids=l.exById&&typeof l.exById==='object'?l.exById:{};
+      Object.entries(ids).forEach(([id,sets])=>{
+        if(!id||!Array.isArray(sets))return;
+        const weights=sets.filter(s=>s&&isNumber(s.w)&&Number(s.w)>0&&isNumber(s.r)&&Number(s.r)>0)
+          .map(s=>Number(s.w));
+        if(!weights.length)return;
+        if(!by.has(id))by.set(id,[]);
+        by.get(id).push({t:l.t,top:Math.max(...weights)});
+      });
     });
     let up=0,down=0,same=0;
-    Object.values(by).forEach(a=>{a.sort((x,y)=>x.t-y.t);if(a.length<2)return;const d=a.at(-1).v-a[0].v;if(d>0.5)up++;else if(d<-.5)down++;else same++});
-    if(!up&&!down&&!same)return null;return {up,down,same,label:up>down?'subindo':down>up?'caindo':'estável'};
+    by.forEach(rows=>{
+      const a=sorted(rows);if(a.length<2)return;
+      const delta=a.at(-1).top-a[0].top;
+      if(delta>0.5)up++;else if(delta<-.5)down++;else same++;
+    });
+    const total=up+down+same;
+    return {up,down,same,total,label:total===0?'—':up>down?'Cargas subindo':down>up?'Cargas caindo':'Misto'};
   }
-  function trainingConsistency(){const cut=Date.now()-14*DAY;return (db.logs||[]).filter(l=>(l.t||0)>=cut).length}
-  function status(){
-    const w=weightTrend().value,waist=waistTrend(),str=strengthTrend(),train=trainingConsistency();let score=0;
-    if(waist!==null){if(waist<=-1)score+=2;else if(waist<0)score+=1;else if(waist>1)score-=1}
-    if(w!==null){if(w<-.15)score+=1;else if(w>.5)score-=1}
-    if(str){if(str.label==='subindo')score+=2;else if(str.label==='estável')score+=1;else score-=1}
-    if(train>=6)score+=1;
-    if(score>=4)return {label:'Muito bom',cls:'good',text:'Cintura, peso e desempenho apontam na direção certa.'};
-    if(score>=2)return {label:'Bom',cls:'good',text:'Há sinais consistentes de recomposição. Continue observando a tendência, não um único dia.'};
-    if(score>=0)return {label:'Estável',cls:'neutral',text:'Ainda não há sinal forte para mudar o plano. Acumule mais dados.'};
-    return {label:'Revisar',cls:'warn',text:'A tendência merece revisão de calorias, recuperação e aderência.'};
+  function trainingDays(){
+    const since=Date.now()-14*DAY;
+    return new Set((db.logs||[])
+      .filter(l=>l&&isNumber(l.t)&&l.t>=since&&l.t<=Date.now()&&
+        l.exById&&Object.values(l.exById).some(a=>Array.isArray(a)&&a.length))
+      .map(l=>dateKey(l.t)).filter(Boolean)).size;
+  }
+  function readState(key){
+    try{return JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(e){return{}}
+  }
+  function nutritionInfo(){
+    const energy=readState('treino_energy_balance_v1');
+    const health=readState('treino_healthkit_v1');
+    const meals=db.meals||[],api=window.MeuTreinoFoodDayStatus;
+    let complete=0,paired=0,missing=0,partial=0,sumIn=0,sumBurn=0;
+    const now=new Date();
+    for(let i=1;i<=7;i++){
+      const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i,12);
+      const key=dateKey(date.getTime());
+      const entries=meals.filter(m=>m&&dateKey(m.t)===key);
+      if(!entries.length){missing++;continue}
+      if(!api||api.get(key,entries)!=='complete'){partial++;continue}
+      const intake=entries.reduce((s,m)=>s+(Number(m.k)||0),0);
+      if(!(intake>0)){partial++;continue}
+      complete++;
+      const h=health.daily&&health.daily[key];
+      const total=Number(h?.total)>0?Number(h.total):Number(energy.burn?.[key])||0;
+      if(total>0){sumIn+=intake;sumBurn+=total;paired++}
+    }
+    return {complete,paired,missing,partial,
+      avgBalance:paired>=3?(sumBurn-sumIn)/paired:null};
+  }
+  function classify(w,c,s,n){
+    if(!w.last&&!c.last&&s.total===0)return {
+      label:'Sem dados suficientes',cls:'neutral',
+      text:'Registre peso, cintura e treinos para acompanhar a evolução.'};
+    if(c.overall!==null&&c.overall<=-1&&s.up>s.down&&s.total>=2)
+      return {label:'Sinais positivos',cls:'good',
+        text:'A cintura diminuiu desde o início e várias cargas de treino aumentaram. Esses sinais são compatíveis com progresso, mas não quantificam perda de gordura nem ganho muscular.'};
+    if(c.overall!==null&&c.overall<0)
+      return {label:'Acompanhando',cls:'neutral',
+        text:'Há redução registrada da cintura. Continue acompanhando medidas, peso e desempenho para confirmar a tendência.'};
+    return {label:'Em observação',cls:'neutral',
+      text:'Ainda não há evidências suficientes para concluir que a composição corporal mudou. Continue acumulando registros comparáveis.'};
+  }
+  function tile(label,value,detail){
+    const d=document.createElement('div');d.className='recomp-tile';
+    const a=document.createElement('span'),b=document.createElement('b'),small=document.createElement('small');
+    a.textContent=label;b.textContent=value;small.textContent=detail;d.append(a,b,small);return d;
   }
   function milestone(){
-    db.prefs=db.prefs||{};
-    if(!Number.isFinite(Number(db.prefs.reassessmentWeight))){const last=weightSeries().at(-1)?.v;db.prefs.reassessmentWeight=last?Math.max(20,Math.floor(last-3.5)):92;try{save()}catch(e){}}
-    return Number(db.prefs.reassessmentWeight);
+    const v=db.prefs?.reassessmentWeight;
+    return isNumber(v)&&Number(v)>=20&&Number(v)<=400?Number(v):null;
   }
-  function tile(label,value,detail){const d=document.createElement('div');d.className='recomp-tile';d.innerHTML='<span>'+label+'</span><b>'+value+'</b><small>'+detail+'</small>';return d}
+  function editMilestone(){
+    const existing=milestone();
+    const raw=prompt('Peso opcional para reavaliar a composição corporal (kg)',existing===null?'':fmt(existing));
+    if(raw===null)return;
+    const value=raw.trim();
+    if(!value){toast('Nenhuma alteração realizada.');return}
+    const x=Number(value.replace(',','.'));
+    if(!Number.isFinite(x)||x<20||x>400){toast('Digite um peso válido');return}
+    db.prefs=db.prefs||{};db.prefs.reassessmentWeight=x;save();renderProg();
+  }
   function card(){
-    const weights=weightSeries(),waists=waistSeries(),w=weightTrend(),wc=waistTrend(),str=strengthTrend(),st=status(),m=milestone(),last=weights.at(-1)?.v;
-    if(!weights.length&&!waists.length&&!(db.logs||[]).length)return null;
-    const c=document.createElement('div');c.className='ex recomp-card';
-    const h=document.createElement('div');h.className='recomp-head';h.innerHTML='<div><h3>Recomposição</h3><span>Mais importante que o peso isolado</span></div><span class="recomp-badge '+st.cls+'">'+st.label+'</span>';c.appendChild(h);
-    const g=document.createElement('div');g.className='recomp-grid';
-    g.appendChild(tile('Peso',w.value===null?'—':((w.value>0?'+':'')+fmt(w.value)+' kg'),w.label));
-    g.appendChild(tile('Cintura',wc===null?'—':((wc>0?'+':'')+fmt(wc)+' cm'),'desde o início'));
-    g.appendChild(tile('Força',str?str.label:'—',str?(str.up+' exercícios ↑ · '+str.down+' ↓'):'ainda sem comparação'));
-    g.appendChild(tile('Treinos',trainingConsistency()+' / 14d',trainingConsistency()>=6?'boa consistência':'continue acumulando dados'));
-    c.appendChild(g);
-    const msg=document.createElement('p');msg.className='recomp-message';msg.textContent=st.text;c.appendChild(msg);
-    const goal=document.createElement('div');goal.className='recomp-milestone';const left=document.createElement('div');left.innerHTML='<span>Próximo marco</span><b>'+fmt(m)+' kg · reavaliar composição</b>'+(last?'<small>'+fmt(Math.max(0,last-m))+' kg até a reavaliação</small>':'');
-    const btn=document.createElement('button');btn.type='button';btn.className='ghost small';btn.textContent='Alterar';btn.onclick=()=>{const raw=prompt('Peso para reavaliar composição corporal (kg)',m);if(raw===null)return;const x=Number(String(raw).replace(',','.'));if(!Number.isFinite(x)||x<20||x>400){toast('Digite um peso válido');return}db.prefs.reassessmentWeight=x;save();renderProg()};goal.append(left,btn);c.appendChild(goal);return c;
+    const w=weightInfo(),c=waistInfo(),s=strengthInfo(),n=nutritionInfo();
+    if(!w.a.length&&!c.a.length&&s.total===0&&!(db.logs||[]).length)return null;
+    const status=classify(w,c,s,n);
+    const root=document.createElement('div');root.className='ex recomp-card';
+    const header=document.createElement('div');header.className='recomp-head';
+    const heading=document.createElement('div'),h3=document.createElement('h3'),sub=document.createElement('span');
+    h3.textContent='Recomposição corporal';sub.textContent='Peso, cintura, força e alimentação';
+    heading.append(h3,sub);
+    const badge=document.createElement('span');badge.className='recomp-badge '+status.cls;badge.textContent=status.label;
+    header.append(heading,badge);root.appendChild(header);
+
+    const grid=document.createElement('div');grid.className='recomp-grid';
+    grid.appendChild(tile('Peso atual',w.last?fmt(w.last.v)+' kg':'—',
+      w.last?(w.a.length+' dia(s) medidos · última pesagem há '+daysAgo(w.last.t)+' dia(s)'):'Sem pesagens'));
+    grid.appendChild(tile('Tendência de peso (7d)',
+      w.trend===null?'—':signed(w.trend,'kg'),
+      w.trend===null?'Exige 2 pesagens em cada uma das últimas 2 semanas':'Diferença entre duas médias de 7 dias'));
+    grid.appendChild(tile('Cintura',c.last?fmt(c.last.v)+' cm':'—',
+      c.overall===null?'Sem comparação':signed(c.overall,'cm')+' desde o início'));
+    grid.appendChild(tile('Cargas de treino',s.label,
+      s.total?s.up+' exercício(s) ↑ · '+s.down+' ↓ · '+s.same+' estável(is)':'Sem comparações por ID'));
+    const count=trainingDays();
+    grid.appendChild(tile('Dias de treino',count+' / 14',
+      'Dias distintos com sessões registradas'));
+    grid.appendChild(tile('Alimentação completa',n.complete+' / 7',
+      n.paired+' dia(s) também com gasto total registrado'));
+    grid.appendChild(tile('Saldo calórico (7d)',n.avgBalance===null?'—':
+      (n.avgBalance>=0?'−':'+')+fmt(Math.abs(n.avgBalance))+' kcal/dia',
+      n.avgBalance===null?'Exige ao menos 3 dias completos com gasto':'Estimativa apenas dos '+n.paired+' dias confirmados'));
+    root.appendChild(grid);
+
+    const msg=document.createElement('p');msg.className='recomp-message';msg.textContent=status.text;root.appendChild(msg);
+    const evidence=document.createElement('div');evidence.className='recomp-evidence';
+    const flags=[];
+    if(w.a.length&&w.trend===null)flags.push('Pesagens insuficientes para comparar médias semanais.');
+    if(w.last&&!w.recent)flags.push('A última pesagem é antiga; atualize quando puder.');
+    if(c.last&&!c.recent)flags.push('A última medida de cintura tem mais de 21 dias.');
+    if(n.complete<3)flags.push('Confirme dias de alimentação completos para analisar o déficit com mais confiança.');
+    if(n.paired<3)flags.push('Ainda não é possível confirmar um déficit calórico semanal.');
+    if(s.total)flags.push('Aumento de carga não comprova, sozinho, crescimento muscular.');
+    if(!flags.length)flags.push('Tendências são estimativas; sono, água e execução também influenciam os resultados.');
+    const list=document.createElement('ul');flags.slice(0,4).forEach(t=>{
+      const li=document.createElement('li');li.textContent=t;list.appendChild(li);
+    });
+    evidence.appendChild(list);root.appendChild(evidence);
+    const m=milestone(),goal=document.createElement('div');goal.className='recomp-milestone';
+    const left=document.createElement('div'),label=document.createElement('span'),desc=document.createElement('b');
+    label.textContent='Reavaliação opcional';
+    desc.textContent=m===null?'Sem peso definido para reavaliação':fmt(m)+' kg · reavaliar composição';
+    left.append(label,desc);
+    const btn=document.createElement('button');btn.type='button';btn.className='ghost small';
+    btn.textContent=m===null?'Definir':'Alterar';btn.onclick=editMilestone;
+    goal.append(left,btn);root.appendChild(goal);
+    return root;
   }
   function enhanceGoal(){
-    const v=document.getElementById('vProg');if(!v)return;
-    const old=v.querySelector('.goal-btn');if(old){const m=milestone();old.textContent='Reavaliar em: '+fmt(m)+' kg';old.onclick=()=>{const raw=prompt('Peso para reavaliar composição corporal (kg)',m);if(raw===null)return;const x=Number(String(raw).replace(',','.'));if(!Number.isFinite(x)||x<20||x>400){toast('Digite um peso válido');return}db.prefs.reassessmentWeight=x;save();renderProg()};const hero=old.closest('.ex');const hint=[...(hero?.querySelectorAll('.hint')||[])].find(x=>/Faltam|Meta atingida/i.test(x.textContent));if(hint)hint.textContent='Use este peso como ponto de reavaliação; o objetivo final depende da composição corporal.'}
+    const root=document.getElementById('vProg');if(!root)return;
+    const old=root.querySelector('.goal-btn');
+    if(!old)return;
+    const m=milestone();
+    old.textContent=m===null?'Definir reavaliação':'Reavaliar em: '+fmt(m)+' kg';
+    old.onclick=editMilestone;
+    const hero=old.closest('.ex');
+    const hint=[...(hero?.querySelectorAll('.hint')||[])].find(x=>/Faltam|Meta atingida/i.test(x.textContent));
+    if(hint)hint.textContent='O peso isolado não define seu objetivo físico final.';
   }
   function inject(){
-    const v=document.getElementById('vProg');if(!v)return;v.querySelector('.recomp-card')?.remove();
-    const weightTitle=[...v.querySelectorAll('h3')].find(h=>h.textContent==='Peso corporal');if(!weightTitle)return;
-    enhanceGoal();const c=card();if(!c)return;const hero=weightTitle.closest('.ex');if(hero)hero.insertAdjacentElement('afterend',c);
+    const root=document.getElementById('vProg');if(!root)return;
+    root.querySelector('.recomp-card')?.remove();
+    const heading=[...root.querySelectorAll('h3')].find(x=>x.textContent==='Peso corporal');
+    if(!heading)return;
+    enhanceGoal();
+    const cardNode=card(),hero=heading.closest('.ex');
+    if(cardNode&&hero)hero.insertAdjacentElement('afterend',cardNode);
   }
-  if(typeof renderProg==='function'){const base=renderProg;renderProg=function(){base.apply(this,arguments);inject()}}
-  const st=document.createElement('style');st.textContent=`
-    .recomp-card{padding:13px}.recomp-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.recomp-head h3{font-size:21px}.recomp-head span{display:block;color:var(--mute);font-size:12px;margin-top:2px}.recomp-badge{font-size:11px;font-weight:800;border-radius:999px;padding:5px 8px;background:var(--bg);color:var(--mute)}.recomp-badge.good{background:var(--ok);color:var(--acc)}.recomp-badge.warn{color:#a73f2a}.recomp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.recomp-tile{background:var(--bg);border-radius:9px;padding:9px}.recomp-tile span,.recomp-tile small,.recomp-tile b{display:block}.recomp-tile span{color:var(--mute);font-size:11px}.recomp-tile b{font-size:16px;margin:2px 0}.recomp-tile small{color:var(--mute);font-size:10px;line-height:1.25}.recomp-message{font-size:12px;line-height:1.4;margin:10px 0;color:var(--ink)}.recomp-milestone{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px;background:var(--bg);border-radius:9px}.recomp-milestone span,.recomp-milestone b,.recomp-milestone small{display:block}.recomp-milestone span,.recomp-milestone small{font-size:10px;color:var(--mute)}.recomp-milestone b{font-size:13px;margin:2px 0}@media(max-width:390px){.recomp-grid{grid-template-columns:1fr}}
-  `;document.head.appendChild(st);
+  if(typeof renderProg==='function'){
+    const previous=renderProg;
+    renderProg=function(){const out=previous.apply(this,arguments);inject();return out};
+  }
+  const style=document.createElement('style');
+  style.textContent='.recomp-card{padding:13px}.recomp-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.recomp-head h3{font-size:21px}.recomp-head span{display:block;color:var(--mute);font-size:12px;margin-top:2px}.recomp-badge{font-size:11px;font-weight:700;border-radius:999px;padding:5px 8px;background:var(--bg);color:var(--mute)}.recomp-badge.good{background:var(--ok);color:var(--acc)}.recomp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.recomp-tile{background:var(--bg);border-radius:9px;padding:9px;min-width:0}.recomp-tile span,.recomp-tile small,.recomp-tile b{display:block}.recomp-tile span{color:var(--mute);font-size:11px}.recomp-tile b{font-size:16px;margin:2px 0;overflow-wrap:anywhere}.recomp-tile small{color:var(--mute);font-size:10px;line-height:1.3}.recomp-message{font-size:12px;line-height:1.4;margin:10px 0;color:var(--ink)}.recomp-evidence{color:var(--mute);font-size:11px;line-height:1.5}.recomp-evidence ul{padding-left:18px;margin:4px 0 12px}.recomp-evidence li{margin:3px 0}.recomp-milestone{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px;background:var(--bg);border-radius:9px}.recomp-milestone span,.recomp-milestone b{display:block}.recomp-milestone span{font-size:10px;color:var(--mute)}.recomp-milestone b{font-size:13px;margin:2px 0}@media(max-width:390px){.recomp-grid{grid-template-columns:1fr}}';
+  document.head.appendChild(style);
 })();
