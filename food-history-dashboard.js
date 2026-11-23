@@ -11,6 +11,11 @@
   const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
   const escCsv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
 
+
+  const dayStatus=window.MeuTreinoFoodDayStatus;
+  function statusFor(d){return d?dayStatus?.get(d.key,d.a)||'unreviewed':'missing'}
+  const statusNames={complete:'Completo',partial:'Parcial',unreviewed:'Pendente',missing:'Sem registro'};
+  function localTime(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d,12).getTime()}
   function readJson(key,fallback){try{return Object.assign(fallback,JSON.parse(localStorage.getItem(key)||'{}')||{})}catch(e){return fallback}}
   function foodDays(){
     const map={};
@@ -58,10 +63,11 @@
     return out;
   }
   function summary(days){
-    if(!days.length)return null;
-    const today=dayKey(Date.now()),withBurn=days.map(d=>({d,h:healthFor(d.key)})).filter(x=>x.h.total>0&&x.d.key!==today);
-    const avg=(field)=>days.reduce((s,d)=>s+(Number(d[field])||0),0)/days.length;
-    const out={avgK:avg('k'),avgP:avg('p'),burnDays:withBurn.length,avgBurn:0,avgBalance:0,totalBalance:0};
+    const today=dayKey(Date.now());
+    const completed=days.filter(d=>d.key!==today&&statusFor(d)==='complete');
+    const withBurn=completed.map(d=>({d,h:healthFor(d.key)})).filter(x=>x.h.total>0);
+    const avg=field=>completed.length?completed.reduce((s,d)=>s+(Number(d[field])||0),0)/completed.length:null;
+    const out={completeDays:completed.length,avgK:avg('k'),avgP:avg('p'),burnDays:withBurn.length,avgBurn:null,avgBalance:null,totalBalance:null};
     if(withBurn.length){
       out.avgBurn=withBurn.reduce((s,x)=>s+x.h.total,0)/withBurn.length;
       out.totalBalance=withBurn.reduce((s,x)=>s+(x.h.total-x.d.k),0);
@@ -79,12 +85,12 @@
   }
   function exportCsv(all){
     if(!all.length){toast('Não há dias para exportar');return}
-    const rows=[['Data','Calorias ingeridas','Proteina (g)','Carboidrato (g)','Gordura (g)','Calorias ativas','Calorias em repouso','Gasto total','Saldo (gasto - consumo)','Fonte do gasto']];
+    const rows=[['Data','Calorias ingeridas','Proteina (g)','Carboidrato (g)','Gordura (g)','Calorias ativas','Calorias em repouso','Gasto total','Saldo estimado (gasto - consumo)','Fonte do gasto','Situação alimentação']];
     calendarRows(all).forEach(({key,food:d})=>{
-      const h=healthFor(key),hasFood=!!d,bal=hasFood&&h.total?h.total-d.k:'';
+      const h=healthFor(key),hasFood=!!d,status=statusFor(d),bal=status==='complete'&&key!==dayKey(Date.now())&&h.total?h.total-d.k:'';
       rows.push([key,hasFood?Math.round(d.k):'',hasFood?r1(d.p):'',hasFood?r1(d.c):'',
         hasFood?r1(d.g):'',h.active||'',h.resting||'',h.total||'',
-        bal===''?'':Math.round(bal),h.source||'']);
+        bal===''?'':Math.round(bal),h.source||'',statusNames[status]]);
     });
     const csv='\uFEFF'+rows.map(r=>r.map(escCsv).join(';')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -106,9 +112,9 @@
     if(s){
       const stats=make('div','history-stats');
       const add=(label,value,sub)=>{const x=make('div','history-stat');x.append(make('span','',label),make('b','',value),make('small','',sub||''));stats.appendChild(x)};
-      add('Média consumo',fmt(s.avgK)+' kcal',shown.length+' dia(s)');
-      add('Média proteína',fmt(s.avgP)+' g','por dia');
-      if(s.burnDays>=3)add('Saldo estimado',(s.avgBalance>=0?'−':'+')+fmt(Math.abs(s.avgBalance))+' kcal',s.burnDays+' dia(s) completos com gasto; estimativa');
+      add('Média consumo',s.avgK===null?'—':fmt(s.avgK)+' kcal',s.completeDays+' dia(s) encerrados e completos');
+      add('Média proteína',s.avgP===null?'—':fmt(s.avgP)+' g','somente dias completos');
+      if(s.burnDays>=3)add('Saldo estimado',(s.avgBalance>=0?'−':'+')+fmt(Math.abs(s.avgBalance))+' kcal',s.burnDays+' dia(s) encerrados e completos com gasto');
       else add('Saldo estimado','—','Somente '+s.burnDays+' dia(s) com gasto; dados insuficientes');
       card.appendChild(stats);
     }
@@ -130,7 +136,7 @@
     if(ui.range!=='all'&&all.length>shown.length){
       const more=make('button','ghost wide history-more','Ver todos os '+all.length+' dias');more.type='button';more.onclick=()=>{ui.range='all';saveUi();renderComida()};card.appendChild(more);
     }
-    const note=make('div','hint history-note','Saldo estimado, sujeito a refeições incompletas. O CSV inclui dias sem alimentação com campos vazios, nunca zero kcal.');card.appendChild(note);
+    const note=make('div','hint history-note','Apenas dias encerrados confirmados como completos entram no saldo. Dias sem alimentação ficam vazios no CSV; registros antigos não são alterados.');card.appendChild(note);
     return card;
   }
   function enhance(){
