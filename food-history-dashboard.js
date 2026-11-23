@@ -34,11 +34,32 @@
   function selectedDays(all){
     if(ui.range==='all')return all;
     const n=Number(ui.range)||30;
-    return all.slice(0,n);
+    const start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-n+1);
+    return all.filter(d=>d.t>=start.getTime());
+  }
+  function foodIssues(entries){
+    const issues=[];
+    (entries||[]).forEach(m=>{
+      const k=Number(m.k)||0,p=Number(m.p)||0,c=Number(m.c)||0,g=Number(m.g)||0;
+      if(k>0&&(4*p+4*c+9*g)>k*1.35+30)issues.push(m.n||'Alimento');
+      else if(k>=150&&p===0&&c===0&&g===0)issues.push(m.n||'Alimento');
+    });
+    return issues;
+  }
+  function calendarRows(all){
+    if(!all.length)return[];
+    const map=new Map(all.map(d=>[d.key,d]));
+    const first=new Date(Math.min(...all.map(d=>d.t)));first.setHours(12,0,0,0);
+    const last=new Date();last.setHours(12,0,0,0);
+    const out=[];
+    for(const date=new Date(first);date<=last;date.setDate(date.getDate()+1)){
+      const key=dayKey(date.getTime());out.push({key,food:map.get(key)||null});
+    }
+    return out;
   }
   function summary(days){
     if(!days.length)return null;
-    const withBurn=days.map(d=>({d,h:healthFor(d.key)})).filter(x=>x.h.total>0);
+    const today=dayKey(Date.now()),withBurn=days.map(d=>({d,h:healthFor(d.key)})).filter(x=>x.h.total>0&&x.d.key!==today);
     const avg=(field)=>days.reduce((s,d)=>s+(Number(d[field])||0),0)/days.length;
     const out={avgK:avg('k'),avgP:avg('p'),burnDays:withBurn.length,avgBurn:0,avgBalance:0,totalBalance:0};
     if(withBurn.length){
@@ -59,9 +80,11 @@
   function exportCsv(all){
     if(!all.length){toast('Não há dias para exportar');return}
     const rows=[['Data','Calorias ingeridas','Proteina (g)','Carboidrato (g)','Gordura (g)','Calorias ativas','Calorias em repouso','Gasto total','Saldo (gasto - consumo)','Fonte do gasto']];
-    all.slice().sort((a,b)=>a.t-b.t).forEach(d=>{
-      const h=healthFor(d.key),balance=h.total?h.total-d.k:'';
-      rows.push([d.key,Math.round(d.k),r1(d.p),r1(d.c),r1(d.g),h.active||'',h.resting||'',h.total||'',balance===''?'':Math.round(balance),h.source||'']);
+    calendarRows(all).forEach(({key,food:d})=>{
+      const h=healthFor(key),hasFood=!!d,bal=hasFood&&h.total?h.total-d.k:'';
+      rows.push([key,hasFood?Math.round(d.k):'',hasFood?r1(d.p):'',hasFood?r1(d.c):'',
+        hasFood?r1(d.g):'',h.active||'',h.resting||'',h.total||'',
+        bal===''?'':Math.round(bal),h.source||'']);
     });
     const csv='\uFEFF'+rows.map(r=>r.map(escCsv).join(';')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -78,14 +101,15 @@
     const head=make('div','history-head'),titles=make('div');titles.append(make('h3','','Histórico de alimentação'),make('div','hint',all.length+' dia(s) com alimentação registrada'));
     const exp=make('button','ghost history-export','Exportar CSV');exp.type='button';exp.onclick=()=>exportCsv(all);head.append(titles,exp);card.appendChild(head);
     rangeButtons(card);
+    if(ui.range!=='all'&&shown.length<Number(ui.range))card.appendChild(make('div','hint','Somente '+shown.length+' de '+ui.range+' dias têm alimentação registrada.'));
     const s=summary(shown);
     if(s){
       const stats=make('div','history-stats');
       const add=(label,value,sub)=>{const x=make('div','history-stat');x.append(make('span','',label),make('b','',value),make('small','',sub||''));stats.appendChild(x)};
       add('Média consumo',fmt(s.avgK)+' kcal',shown.length+' dia(s)');
       add('Média proteína',fmt(s.avgP)+' g','por dia');
-      if(s.burnDays)add('Saldo médio',(s.avgBalance>=0?'−':'+')+fmt(Math.abs(s.avgBalance))+' kcal',s.burnDays+' dia(s) com gasto');
-      else add('Apple Health','—','sem gasto sincronizado');
+      if(s.burnDays>=3)add('Saldo estimado',(s.avgBalance>=0?'−':'+')+fmt(Math.abs(s.avgBalance))+' kcal',s.burnDays+' dia(s) completos com gasto; estimativa');
+      else add('Saldo estimado','—','Somente '+s.burnDays+' dia(s) com gasto; dados insuficientes');
       card.appendChild(stats);
     }
     const list=make('div','history-list');
@@ -95,15 +119,18 @@
       const main=make('div','history-day-main'),left=make('div'),right=make('div','history-day-kcal');
       left.append(make('b','',labelDate(d.t)),make('small','',`P ${fmt(d.p)} · C ${fmt(d.c)} · G ${fmt(d.g)}`));
       right.append(make('b','',fmt(d.k)+' kcal'));
-      if(h.total){const bal=h.total-d.k;right.append(make('small','',`Gasto ${fmt(h.total)} · ${bal>=0?'Déficit':'Superávit'} ${fmt(Math.abs(bal))}`))}
+      if(h.total){const bal=h.total-d.k;right.append(make('small','',`Gasto ${fmt(h.total)} · Saldo ${d.key===dayKey(Date.now())?'parcial':'estimado'} ${bal>=0?'−':'+'}${fmt(Math.abs(bal))}`))}
       else right.append(make('small','','Gasto não informado'));
-      main.append(left,right);row.appendChild(main);list.appendChild(row);
+      main.append(left,right);row.appendChild(main);
+      const issues=foodIssues(d.a);
+      if(issues.length)row.appendChild(make('div','hint food-quality-warning','⚠ Confira os macros de '+issues.slice(0,2).join(', ')+(issues.length>2?' e outros':'')+'.'));
+      list.appendChild(row);
     });
     card.appendChild(list);
     if(ui.range!=='all'&&all.length>shown.length){
       const more=make('button','ghost wide history-more','Ver todos os '+all.length+' dias');more.type='button';more.onclick=()=>{ui.range='all';saveUi();renderComida()};card.appendChild(more);
     }
-    const note=make('div','hint history-note','O CSV inclui alimentação e, quando disponível, calorias ativas, repouso, gasto total e saldo diário.');card.appendChild(note);
+    const note=make('div','hint history-note','Saldo estimado, sujeito a refeições incompletas. O CSV inclui dias sem alimentação com campos vazios, nunca zero kcal.');card.appendChild(note);
     return card;
   }
   function enhance(){
