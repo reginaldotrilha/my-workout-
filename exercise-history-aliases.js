@@ -23,6 +23,8 @@
       let sets=[];
       if(log?.exById){
         for(const [id,a] of Object.entries(log.exById)){
+          // Preserve original rows, but do not suggest phantom IDs absent from explicit session order.
+          if(typeof ACTIVE_PROFILE!=='undefined'&&ACTIVE_PROFILE==='reginaldo'&&Array.isArray(log.exerciseOrder)&&log.exerciseOrder.length&&!log.exerciseOrder.includes(id))continue;
           const metaName=log.exMeta?.[id]?.name||'';
           if(ids.has(id)||(name&&norm(metaName)===norm(name)))sets=sets.concat(clone(a||[]));
         }
