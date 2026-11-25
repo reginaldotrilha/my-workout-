@@ -41,7 +41,7 @@
     }
 
     repairLateralRaise();
-    if(p.programVersion===VERSION)return;
+    if(p.programVersion===VERSION||p.programVersion==='reginaldo_abcde_priority_v5')return;
 
     // Do not rearrange a workout while a real session is in progress.
     const activeDraft=Object.values(db.draft||{}).some(dayDraft=>Object.values(dayDraft||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s&&s.ok)));
@@ -125,3 +125,48 @@
     save();
   }catch(e){console.warn('Reginaldo ABCDE priority migration skipped',e);}
 })();
+
+// Targeted v5 adjustment; never rewrite completed logs or other profiles.
+(function(){try{(function priorityV5(db,PLAN,storage,KEY,profile,notify){
+  if(profile!=='reginaldo')return false;
+  const old=db?.training?.current;
+  if(!old||old.programVersion!=='reginaldo_abcde_priority_v4')return false;
+  const currentE=old.days?.E?.ex;
+  const expected=['ez_bar_curl','incline_dumbbell_curl','triceps_rope_pushdown','cable_overhead_extension','lateral_raise'];
+  if(!currentE||JSON.stringify(currentE.map(x=>x.id))!==JSON.stringify(expected))return false;
+  const drafts=db.draft||{};
+  if(Object.values(drafts).some(d=>Object.values(d||{}).some(rows=>Array.isArray(rows)&&rows.some(s=>s?.ok))))return false;
+  const flex=JSON.parse(storage.getItem('treino_workout_flex_v1')||'{}');
+  const extraSets=JSON.parse(storage.getItem('treino_session_extra_sets_v1')||'{}');
+  const hasVariant=d=>{const s=flex.sessions?.[old.id+':'+d];return !!(Object.keys(s?.subs||{}).length||s?.extras?.length)};
+  if(hasVariant('E')||Object.keys(extraSets.sessions||{}).length)return false;
+  if(Object.keys(drafts.E||{}).some(k=>!Number.isInteger(Number(k))||Number(k)<0||Number(k)>=currentE.length))return false;
+  const clone=x=>JSON.parse(JSON.stringify(x));
+  const next=clone(old),nextDraft=clone(drafts);
+  const ex=(id,name,target,sets)=>({id,name,target,sets,type:'weight_reps',catalogId:id});
+  next.days.E.ex=[
+    ex('machine_seated_row','Remada sentada na máquina','3×8-12',3),
+    ex('machine_biceps_curl','Rosca na máquina','3×8-12',3),
+    ex('bayesian_curl','Rosca bayesian na polia','2×10-15',2),
+    clone(currentE[2]),clone(currentE[3])
+  ];
+  next.days.E.muscles='Costas • Bíceps • Tríceps';
+  next.programVersion='reginaldo_abcde_priority_v5';
+  if(drafts.E){const dst={};currentE.forEach((x,i)=>{const j=next.days.E.ex.findIndex(y=>y.id===x.id);if(j>=0&&Array.isArray(drafts.E[i]))dst[j]=clone(drafts.E[i]);});if(Object.keys(dst).length)nextDraft.E=dst;else delete nextDraft.E;}
+  // Known stale prefill in this export: 55 kg from a chest fly in the lateral raise slot.
+  // Clear only that exact unchecked pattern, never a completed set or an active substitution.
+  for(const d of ['A','D']){if(hasVariant(d))continue;const i=old.days?.[d]?.ex?.findIndex(x=>x.id==='lateral_raise');const rows=nextDraft[d]?.[i];if(i>=0&&Array.isArray(rows)&&rows.length&&rows.every(s=>!s?.ok&&Number(s?.w)===55&&Number(s?.r)===12))delete nextDraft[d][i];}
+  const backupKey='treino_v1_backup_before_abcde_v5_20261125';
+  const raw=storage.getItem(KEY);
+  if(raw===null)return false;
+  if(storage.getItem(backupKey)===null)storage.setItem(backupKey,raw);
+  if(storage.getItem(backupKey)!==raw)return false;
+  const updated={...db,training:{...db.training,current:next},draft:nextDraft,u:Date.now()};
+  const serialized=JSON.stringify(updated);
+  storage.setItem(KEY,serialized);
+  if(storage.getItem(KEY)!==serialized)return false;
+  db.training.current=next;db.draft=nextDraft;db.u=updated.u;
+  for(const [k,d] of Object.entries(next.days))PLAN[k]={n:d.name,ex:d.ex.map(x=>[x.name,x.target,Number(x.sets)||1,x.id])};
+  if(typeof notify==='function')notify();
+  return true;
+})(db,PLAN,localStorage,KEY,typeof ACTIVE_PROFILE==='undefined'?null:ACTIVE_PROFILE,typeof push==='function'?push:null);}catch(e){console.warn('Reginaldo ABCDE v5 skipped',e);}})();
