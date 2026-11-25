@@ -6,7 +6,28 @@
   try{state=Object.assign(state,JSON.parse(localStorage.getItem(ENERGY_KEY)||'{}')||{})}catch(e){}
   state.burn=state.burn&&typeof state.burn==='object'?state.burn:{};
   state.targetDeficit=[400,500,600].includes(Number(state.targetDeficit))?Number(state.targetDeficit):500;
-  const saveState=()=>{try{localStorage.setItem(ENERGY_KEY,JSON.stringify(state))}catch(e){}};
+  // Write only after reading the latest stored state; never report success on a failed write.
+  function saveChange(change){
+    try{
+      const raw=localStorage.getItem(ENERGY_KEY);
+      const stored=raw===null?{burn:{},targetDeficit:500}:JSON.parse(raw);
+      if(!stored||typeof stored!=='object'||Array.isArray(stored)||!stored.burn||typeof stored.burn!=='object'||Array.isArray(stored.burn))throw Error('Invalid energy storage');
+      const next={...stored,burn:{...stored.burn}};
+      change(next);
+      const json=JSON.stringify(next);
+      localStorage.setItem(ENERGY_KEY,json);
+      if(localStorage.getItem(ENERGY_KEY)!==json)throw Error('Write not verified');
+      state=next;return true;
+    }catch(e){toast('Não foi possível salvar. O registro anterior foi preservado quando possível.');return false;}
+  }
+  function refreshState(){
+    try{
+      const raw=localStorage.getItem(ENERGY_KEY);
+      if(raw===null)return;
+      const latest=JSON.parse(raw);
+      if(latest?.burn&&typeof latest.burn==='object'&&!Array.isArray(latest.burn))state={...latest,targetDeficit:[400,500,600].includes(Number(latest.targetDeficit))?Number(latest.targetDeficit):500};
+    }catch(e){}
+  }
   const round50=n=>Math.round(n/50)*50;
   const fmt=n=>Math.round(Number(n)||0).toLocaleString('pt-BR');
   const todayKey=()=>dayKey(Date.now());
@@ -47,22 +68,34 @@
     return'Superávit estimado hoje. Um dia isolado não define o resultado da semana.'
   }
   function buildCard(){
+    refreshState();
     const key=todayKey(),eaten=eatenFor(key),hasMeals=(db.meals||[]).some(m=>dayKey(m.t)===key),burn=Number(state.burn[key])||0,c=make('div','ex energy-card');
     const head=make('div','ex-h'),h=make('h3','', 'Balanço energético'),badge=make('span','tgt','Meta-base '+GOAL.k+' kcal');head.append(h,badge);c.appendChild(head);
     c.appendChild(make('p','hint','A meta de '+GOAL.k+' kcal continua sendo sua referência. Em dias muito ativos, use o gasto total para decidir se faz sentido comer um pouco mais; em descanso, não é necessário cortar agressivamente.'));
     const grid=make('div','energy-grid');
     const eat=make('div','energy-stat');eat.innerHTML='<span>Consumido hoje</span><b>'+fmt(eaten)+' kcal</b>';grid.appendChild(eat);
-    const burnBox=make('label','energy-input');burnBox.appendChild(make('span','','Gasto total do Apple Fitness'));
+    const burnBox=make('div','energy-input');burnBox.appendChild(make('span','','Gasto total do Apple Fitness'));
     const row=make('div','energy-input-row'),inp=make('input');inp.type='number';inp.inputMode='numeric';inp.placeholder='ex.: 2908';inp.value=burn||'';inp.setAttribute('aria-label','Gasto total de calorias no Apple Fitness');
-    const save=make('button','ghost','Salvar');save.onclick=()=>{const n=num(inp.value);if(n===null||n<1200||n>6000){toast('Confira o gasto total em kcal');return}state.burn[key]=Math.round(n);saveState();renderComida();toast('Gasto total salvo')};row.append(inp,save);burnBox.appendChild(row);grid.appendChild(burnBox);c.appendChild(grid);
-    const controls=make('div','energy-controls'),lab=make('label');lab.appendChild(make('span','','Déficit-alvo'));const sel=make('select');[400,500,600].forEach(x=>{const o=make('option','',x+' kcal');o.value=x;sel.appendChild(o)});sel.value=String(state.targetDeficit);sel.onchange=()=>{state.targetDeficit=Number(sel.value);saveState();renderComida()};lab.appendChild(sel);controls.appendChild(lab);
-    if(burn){const clear=make('button','ghost small','Limpar gasto');clear.onclick=()=>{delete state.burn[key];saveState();renderComida()};controls.appendChild(clear)}c.appendChild(controls);
-    if(burn&&hasMeals&&isComplete(key)){
+    const save=make('button','ghost','Salvar');save.type='button';save.onclick=()=>{const n=num(inp.value);if(n===null||n<1200||n>6000){toast('Confira o gasto total em kcal');return}if(!saveChange(s=>{s.burn[key]=Math.round(n)}))return;renderComida();toast('Gasto total salvo')};row.append(inp,save);burnBox.appendChild(row);if(burn)burnBox.appendChild(make('small','hint energy-saved','✓ Salvo: '+fmt(burn)+' kcal'));grid.appendChild(burnBox);c.appendChild(grid);
+    const controls=make('div','energy-controls'),lab=make('label');lab.appendChild(make('span','','Déficit-alvo'));const sel=make('select');[400,500,600].forEach(x=>{const o=make('option','',x+' kcal');o.value=x;sel.appendChild(o)});sel.value=String(state.targetDeficit);sel.onchange=()=>{if(saveChange(s=>{s.targetDeficit=Number(sel.value)}))renderComida();else sel.value=String(state.targetDeficit)};lab.appendChild(sel);controls.appendChild(lab);
+    if(burn){const clear=make('button','ghost small','Limpar gasto');clear.type='button';clear.onclick=()=>{if(saveChange(s=>{delete s.burn[key]}))renderComida()};controls.appendChild(clear)}c.appendChild(controls);
+    if(burn&&hasMeals){
+      const complete=isComplete(key);
       const deficit=burn-eaten,g=guidance(burn),res=make('div','energy-result');
       const cls=deficit>=350&&deficit<=700?'good':deficit>700?'high':deficit<0?'over':'light';
-      res.innerHTML='<div class="energy-balance-number '+cls+'"><span>Saldo estimado agora</span><b>'+(deficit>=0?'−':'+')+fmt(Math.abs(deficit))+' kcal</b><small>'+(deficit>=0?'déficit':'superávit')+'</small></div><div class="energy-range"><span>Faixa sugerida hoje</span><b>'+fmt(g.low)+'–'+fmt(g.high)+' kcal</b><small>mantendo a meta-base como âncora</small></div>';
-      c.appendChild(res);c.appendChild(make('div','hint energy-status','Saldo parcial: confirme o gasto TOTAL ao fim do dia e registre todas as refeições. '+statusText(deficit)));
-    }else c.appendChild(make('div','hint energy-status',burn&&hasMeals?'Alimentação ainda não confirmada como completa. Confirme o dia no Histórico para calcular o saldo.':burn?'Gasto informado, mas não há alimentação registrada hoje: saldo não calculável.':'Opcional: no fim do dia, informe o gasto TOTAL do Apple Fitness. Não use apenas Move.'));
+      res.innerHTML='<div class="energy-balance-number '+(complete?cls:'light')+'"><span>'+(complete?'Saldo estimado agora':'Saldo provisório registrado')+'</span><b>'+(deficit>=0?'−':'+')+fmt(Math.abs(deficit))+' kcal</b><small>'+(complete?(deficit>=0?'déficit':'superávit'):'ainda não confirmado')+'</small></div><div class="energy-range"><span>Faixa sugerida hoje</span><b>'+fmt(g.low)+'–'+fmt(g.high)+' kcal</b><small>mantendo a meta-base como âncora</small></div>';
+      c.appendChild(res);
+      c.appendChild(make('div','hint energy-status',complete?'Saldo parcial: confirme o gasto TOTAL ao fim do dia e registre todas as refeições. '+statusText(deficit):'O gasto foi salvo. O saldo acima usa somente os alimentos registrados até agora; pode mudar com novas refeições e não conta na média semanal enquanto o dia não for confirmado.'));
+      if(!complete){
+        const confirmDay=make('button','ghost wide','Confirmar alimentação de hoje');confirmDay.type='button';
+        confirmDay.onclick=()=>{
+          if(!window.confirm('Você registrou todas as refeições, bebidas e lanches de hoje? Confirme somente se o registro estiver completo.'))return;
+          if(!window.MeuTreinoFoodDayStatus?.set(key,'complete',mealsFor(key))){toast('Não foi possível confirmar a alimentação.');return;}
+          renderComida();toast('Alimentação confirmada');
+        };
+        c.appendChild(confirmDay);
+      }
+    }else c.appendChild(make('div','hint energy-status',burn?'Gasto informado, mas não há alimentação registrada hoje: saldo não calculável.':'Opcional: no fim do dia, informe o gasto TOTAL do Apple Fitness. Não use apenas Move.'));
     const wk=weeklyStats(),w=make('div','energy-week');
     if(wk.days>=3){
       w.innerHTML='<b>Média dos últimos 7 dias encerrados</b><span>'+wk.days+' de 7 dia(s) com alimentação completa confirmada e gasto registrado. Estimativa.</span><div><span>Consumo <strong>'+fmt(wk.eaten)+'</strong></span><span>Gasto <strong>'+fmt(wk.burn)+'</strong></span><span>Saldo <strong>'+fmt(wk.deficit)+'</strong></span></div>';
