@@ -39,11 +39,14 @@
   function legacyToStable(){
     let changed=false;
     for(const l of db.logs||[]){
+      // Reginaldo: an existing ID-based record is authoritative, not the current plan positions.
+      if(typeof ACTIVE_PROFILE!=='undefined'&&ACTIVE_PROFILE==='reginaldo'&&Object.keys(l.exById||{}).length)continue;
       if(!l.exById)l.exById={};
       const baseDays=(l.planSnapshot&&l.planSnapshot.days)||current().days;
       if(l.ex)for(const [k,sets] of Object.entries(l.ex)){
         if(!/^\d+$/.test(String(k)))continue;
-        const i=Number(k),x=baseDays?.[l.day]?.ex?.[i]||current().days?.[l.day]?.ex?.[i];
+        const i=Number(k),strict=typeof ACTIVE_PROFILE!=='undefined'&&ACTIVE_PROFILE==='reginaldo';
+        const x=strict?(Array.isArray(l.exerciseOrder)?(l.exerciseOrder[i]?{id:l.exerciseOrder[i]}:null):l.planSnapshot?.days?.[l.day]?.ex?.[i]):(baseDays?.[l.day]?.ex?.[i]||current().days?.[l.day]?.ex?.[i]);
         if(x&&x.id&&!l.exById[x.id]){l.exById[x.id]=clone(sets);changed=true}
       }
       if(!l.planId){l.planId=current().id;changed=true}
@@ -73,7 +76,7 @@
     if(db.logs.length||db.meals.length||db.body.length||db.waist.length||db.measures.length)push();
   }catch(e){}};
 
-  window.trainingHistory=function(d,i,e){const id=exId(d,i,e),out=[];for(const l of db.logs||[]){const s=l.exById?.[id]||((!l.planId||l.planId===current().id)&&l.day===d?l.ex?.[i]:null);if(s&&s.length)out.push({t:l.t,sets:s,planId:l.planId,name:l.exMeta?.[id]?.name||e?.[0]})}return out.sort((a,b)=>a.t-b.t)};
+  window.trainingHistory=function(d,i,e){const id=exId(d,i,e),out=[];for(const l of db.logs||[]){const strict=typeof ACTIVE_PROFILE!=='undefined'&&ACTIVE_PROFILE==='reginaldo';let s;if(strict){const order=Array.isArray(l.exerciseOrder)?l.exerciseOrder:l.planSnapshot?.days?.[l.day]?.ex?.map(x=>x.id);const explicit=Array.isArray(l.exerciseOrder)&&l.exerciseOrder.length>0;const j=order?.indexOf(id)??-1;s=explicit&&j<0?null:l.exById?.[id]||(!Object.keys(l.exById||{}).length&&j>=0?l.ex?.[j]:null);}else s=l.exById?.[id]||((!l.planId||l.planId===current().id)&&l.day===d?l.ex?.[i]:null);if(s&&s.length)out.push({t:l.t,sets:s,planId:l.planId,name:l.exMeta?.[id]?.name||e?.[0]})}return out.sort((a,b)=>a.t-b.t)};
   function lastSets(d,i,e){const h=window.trainingHistory(d,i,e);return h.length?h[h.length-1]:null}
   function bestWeight(d,i,e){const h=window.trainingHistory(d,i,e);let best=null;for(const x of h)for(const s of x.sets||[])if(num(s.w)!==null&&(best===null||num(s.w)>best))best=num(s.w);return best}
   function nextDayStable(){const keys=dayKeys();if(!keys.length)return 'A';for(let i=db.logs.length-1;i>=0;i--){const l=db.logs[i];if(l.planId===current().id){const p=keys.indexOf(l.day);return keys[(p+1+keys.length)%keys.length]}}return keys[0]}
